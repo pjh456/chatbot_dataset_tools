@@ -1,3 +1,3 @@
-import core
-import adapters
-import transforms
+import chatbot_dataset_tools.core
+import chatbot_dataset_tools.adapters
+import chatbot_dataset_tools.transforms
