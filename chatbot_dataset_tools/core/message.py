@@ -35,3 +35,11 @@ class Message(BaseModel):
         return (
             f"[{self.role.value}] action={self.action} content={self.content[:20]}..."
         )
+
+    def clone(self) -> "Message":
+        """执行消息的深拷贝.
+
+        Returns:
+            Message: 拥有独立内存地址的新消息对象，修改它不会影响原对象.
+        """
+        return self.model_copy(deep=True)

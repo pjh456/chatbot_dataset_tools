@@ -41,3 +41,22 @@ class Conversation(BaseModel):
         msg = Message(role=role, content=content, **kwargs)
         self.messages.append(msg)
         return msg
+
+    def clone(self) -> "Conversation":
+        """执行对话的深拷贝（包括其包含的所有消息）.
+
+        Returns:
+            Conversation: 完整的深拷贝副本.
+        """
+        return self.model_copy(deep=True)
+
+    def clone_schema(self) -> "Conversation":
+        """仅克隆对话的元数据和架构设置，不包含具体的消息流.
+
+        常用于从旧对话中派生新对话，或在过滤/变换消息时作为容器.
+        """
+        # 先深度拷贝整个对象
+        new_obj = self.model_copy(deep=True)
+        # 清空消息列表
+        new_obj.messages = []
+        return new_obj
