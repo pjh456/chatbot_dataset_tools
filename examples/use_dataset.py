@@ -19,7 +19,7 @@ ds = Dataset(list(reader.stream(JSON_PATH)))
 # 2. 链式清洗与过滤
 processed_ds = (
     ds.apply(ExtractorPresets.roleplay_standard())  # 提取动作和思考
-    .filter(lambda c: len(c.messages) >= 1)  # 只保留 4 轮以上的对话
+    .filter(lambda c: len(c.messages) >= 1)  # 只保留 1 轮以上的对话
     .shuffle(seed=42)  # 打乱
 )
 
