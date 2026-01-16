@@ -8,3 +8,9 @@ version = "0.2.0"
 dependencies = [
     "pydantic>=2.0.0"
 ]
+
+[tool.setuptools]
+package-dir = {"" = "chatbot_dataset_tools"}
+
+[tool.setuptools.packages.find]
+where = ["chatbot_dataset_tools"]
