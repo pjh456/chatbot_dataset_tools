@@ -15,18 +15,20 @@ class Message(BaseModel):
         metadata (Dict[str, Any]): 扩展字段，用于存储原格式中不通用的杂项数据.
     """
 
-    model_config = ConfigDict(frozen=False, extra="allow")
-
     role: Role = Field(..., description="角色类型")
     content: str = Field(default="", description="对话文本内容")
 
-    thought: Optional[str] = Field(None, description="模型的内心活动/思维链")
-    action: Optional[str] = Field(None, description="角色的动作/表情/神态描写")
-    scene: Optional[str] = Field(None, description="当前消息发生的特定场景上下文")
+    thought: Optional[str] = Field(default=None, description="模型的内心活动/思维链")
+    action: Optional[str] = Field(default=None, description="角色的动作/表情/神态描写")
+    scene: Optional[str] = Field(
+        default=None, description="当前消息发生的特定场景上下文"
+    )
 
     metadata: Dict[str, Any] = Field(
         default_factory=dict, description="原始数据的额外元信息"
     )
+
+    model_config = ConfigDict(frozen=False, extra="allow")
 
     def __str__(self) -> str:
         """返回格式化的消息摘要，方便调试打印."""

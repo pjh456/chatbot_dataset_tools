@@ -1,5 +1,5 @@
 from typing import Optional, Dict, Any, List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from .role import Role
 from .message import Message
 
@@ -15,15 +15,17 @@ class Conversation(BaseModel):
         char_metadata (Dict[str, Any]): 角色信息，如姓名、性格标签、好感度等.
     """
 
-    id: str = Field(default_factory=str, description="会话ID")
+    id: str = Field(default="", description="会话ID")
 
     messages: List[Message] = Field(default_factory=list, description="对话消息流")
-    system_prompt: Optional[str] = Field(None, description="全局系统提示词")
-    world_definition: Optional[str] = Field(None, description="世界观/设定")
 
+    system_prompt: Optional[str] = Field(default=None, description="全局系统提示词")
+    world_definition: Optional[str] = Field(default=None, description="世界观/设定")
     char_metadata: Dict[str, Any] = Field(
         default_factory=dict, description="角色属性元数据"
     )
+
+    model_config = ConfigDict(populate_by_name=True)
 
     def add_message(self, role: Role, content: str, **kwargs) -> Message:
         """快捷向对话中添加一条消息.
