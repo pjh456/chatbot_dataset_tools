@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
+from typing import List
 from .message import Message
+from .conversation import Conversation
 
 
 class BaseRenderer(ABC):
@@ -19,3 +21,7 @@ class BaseRenderer(ABC):
             Any: 渲染后的结果（通常是字符串或特定格式的 dict）.
         """
         pass
+
+    def render_conversation(self, conversation: Conversation) -> List[str]:
+        """渲染整个对话的所有消息（可选实现）."""
+        return [self.render_message(m) for m in conversation.messages]

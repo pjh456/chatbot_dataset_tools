@@ -1,5 +1,12 @@
 from typing import List, Dict, Any, Optional
-from chatbot_dataset_tools.core import Conversation, Message, Role, BaseAdapter
+from chatbot_dataset_tools.core import (
+    Conversation,
+    Message,
+    Role,
+    BaseAdapter,
+    BaseRenderer,
+)
+from chatbot_dataset_tools.renderers import RolePlayRenderer
 
 
 class ShareGPTAdapter(BaseAdapter):
@@ -9,11 +16,16 @@ class ShareGPTAdapter(BaseAdapter):
     {"conversations": [{"from": "human", "value": "hi"}, {"from": "gpt", "value": "hello"}], "system": "prompt"}
     """
 
-    def __init__(self, role_map: Optional[Dict[str, Role]] = None):
+    def __init__(
+        self,
+        role_map: Optional[Dict[str, Role]] = None,
+        renderer: Optional[BaseRenderer] = None,
+    ):
         """初始化适配器.
 
         Args:
             role_map: 自定义角色映射表。默认为 human->USER, gpt->ASSISTANT, system->SYSTEM.
+            renderer: 渲染器。如果为 None，则默认使用标准星号包裹的 RP 渲染器。
         """
         self.role_map = role_map or {
             "human": Role.USER,
@@ -26,6 +38,8 @@ class ShareGPTAdapter(BaseAdapter):
         }
         # 反向映射用于 dump
         self.rev_role_map = {v: k for k, v in self.role_map.items()}
+
+        self.renderer = renderer or RolePlayRenderer()
 
     def load(self, data: List[Dict[str, Any]]) -> List[Conversation]:
         """将 ShareGPT 字典列表加载为 Conversation 模型列表.
@@ -81,25 +95,13 @@ class ShareGPTAdapter(BaseAdapter):
             entry.update(conv.char_metadata)
 
             for msg in conv.messages:
-                # 渲染逻辑：导出到 ShareGPT 时，我们需要决定如何处理 action/thought
-                # 这里展示一种简单的“合并”渲染，实际应用中可以配合 Renderer。
-                final_value = self._simple_render(msg)
+                final_text = self.renderer.render_message(msg)
 
                 entry["conversations"].append(
                     {
                         "from": self.rev_role_map.get(msg.role, "human"),
-                        "value": final_value,
+                        "value": final_text,
                     }
                 )
             output.append(entry)
         return output
-
-    def _simple_render(self, msg: Message) -> str:
-        """简单的内部渲染，将 action 和 thought 合并到文本中."""
-        parts = []
-        if msg.thought:
-            parts.append(f"<thought>\n{msg.thought}\n</thought>")
-        if msg.action:
-            parts.append(f"*{msg.action}*")
-        parts.append(msg.content)
-        return "\n".join(parts)
