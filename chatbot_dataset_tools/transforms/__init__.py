@@ -1,5 +1,11 @@
-from .extract_action import ExtractActionTransform
+from .extraction_rule import ExtractionRule
+from .extractor import RegexExtractorTransform
+from .presets import ExtractorPresets
 
-__version__ = "0.1.0"
+__version__ = "0.1.3"
 
-__all__ = ["ExtractActionTransform"]
+__all__ = [
+    "ExtractionRule",
+    "RegexExtractorTransform",
+    "ExtractorPresets",
+]
