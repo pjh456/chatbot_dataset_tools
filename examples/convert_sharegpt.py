@@ -1,16 +1,15 @@
+import os
+
+BASE_PATH = os.path.dirname(os.path.abspath(__file__))
+JSON_PATH = os.path.join(BASE_PATH, "sharegpt_example.json")
+
 from chatbot_dataset_tools.adapters import ShareGPTAdapter
 from chatbot_dataset_tools.transforms import ExtractActionTransform
+import json
 
 # 1. 模拟原始 ShareGPT 数据
-raw_data = [
-    {
-        "id": "1",
-        "conversations": [
-            {"from": "human", "value": "你好"},
-            {"from": "gpt", "value": "*微笑地看着你* 你也好呀。"},
-        ],
-    }
-]
+with open(JSON_PATH, "r", encoding="utf-8") as f:
+    raw_data = json.load(f)
 
 # 2. 初始化适配器和转换器
 adapter = ShareGPTAdapter()
