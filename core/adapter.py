@@ -10,7 +10,7 @@ class BaseAdapter(ABC):
     """
 
     @abstractmethod
-    def load(self, data: Any) -> Conversation:
+    def load(self, data: Any) -> List[Conversation]:
         """将外部格式加载为内部 Conversation 模型列表.
 
         Args:
