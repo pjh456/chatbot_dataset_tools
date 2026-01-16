@@ -41,7 +41,21 @@ Message
 
 ---
 
-## 已支持 / 计划支持的数据集格式
+## 项目架构
+
+```
+chatbot_dataset_tools/
+├── core/        # 核心中间模型 + 不可动摇的基础设施
+├── adapters/    # 各类数据集格式（ShareGPT / Alpaca / ...）
+├── transforms/  # 对 Conversation 的结构性变换
+├── renderers/   # 把中间模型“渲染”为文本/指令
+├── io/          # 读写、批量处理、流式
+├── api/         # API 并发生成 / 修正（后续）
+├── cli/         # 命令行工具（后期）
+└── tests/       # 单元测试
+```
+
+## 计划支持的数据集格式
 
 ### 指令微调常用格式
 
