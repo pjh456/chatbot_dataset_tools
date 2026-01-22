@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Union, Iterable, overload, TYPE_CHECKING
+from typing import Union, Iterable, Dict, List, Any, overload, TYPE_CHECKING
 from dataclasses import dataclass, asdict, field
 from .message import Message
 from .message_list import MessageList
@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 @dataclass
 class Conversation:
     data: MessageList
-    metadata: dict = field(default_factory=dict)
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
     def __init__(self, data: Iterable[Message] = [], meta: dict = {}):
         self.data = MessageList(data)
@@ -28,8 +28,17 @@ class Conversation:
 
     @classmethod
     def from_dict(cls, data: dict):
-        messages = [Message(**m) for m in data.get("messages", [])]
-        return cls(messages, data.get("metadata", {}))
+        messages_data: List[Dict[str, Any]] = []
+        metadata: Dict[str, Any] = {}
+
+        if isinstance(data, dict):
+            messages_data: List[Dict[str, Any]] = data.get("messages", [])
+            metadata: Dict[str, Any] = data.get("metadata", {})
+        elif isinstance(data, list):
+            messages_data: List[Dict[str, Any]] = data
+
+        messages = [Message(**m) for m in messages_data]
+        return cls(messages, metadata)
 
     def to_dict(self):
         return {"messages": [asdict(m) for m in self.data], "metadata": self.metadata}
