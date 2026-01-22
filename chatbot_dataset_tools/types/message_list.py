@@ -54,9 +54,7 @@ class MessageList:
 
     __rmul__ = __mul__
 
-    def last(self, n: int = 1) -> Message | MessageList:
-        if n == 1:
-            return self.messages[-1]
+    def last(self, n: int = 1) -> MessageList:
         return MessageList(self.messages[-n:])
 
     def copy(self) -> MessageList:
