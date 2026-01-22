@@ -1,7 +1,8 @@
 from .dataset import Dataset
 from .in_memory_dataset import InMemoryDataset
 from .lazy_dataset import LazyDataset
+from .file_loader import FileLoader
 from .dataset_loader import DatasetLoader
 
-__version__ = "0.3.2"
-__all__ = ["Dataset", "InMemoryDataset", "LazyDataset", "DatasetLoader"]
+__version__ = "0.3.3"
+__all__ = ["Dataset", "InMemoryDataset", "LazyDataset", "FileLoader", "DatasetLoader"]
