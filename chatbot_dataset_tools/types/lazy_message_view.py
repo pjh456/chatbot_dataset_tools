@@ -39,7 +39,7 @@ class LazyMessageView:
         return list(self._iter())
 
     def to_message_list(self) -> MessageList:
-        return MessageList(self._iter())
+        return MessageList(list(self._iter()))
 
     def to_conversation(self) -> Conversation:
         from .conversation import Conversation

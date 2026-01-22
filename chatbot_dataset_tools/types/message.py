@@ -11,9 +11,6 @@ class Message:
     def __str__(self) -> str:
         return f"[{self.role}] {self.content}"
 
-    def __repr__(self) -> str:
-        return f"Message(role={self.role!r}, content={self.content!r})"
-
     def copy(self) -> "Message":
         """创建消息副本，不绑定原始容器"""
         return Message(

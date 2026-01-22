@@ -10,7 +10,7 @@ def test_message():
 
     # __str__ / __repr__
     assert str(m) == "[user] Hello"
-    assert repr(m) == "Message(role='user', content='Hello')"
+    assert repr(m) == "Message(role='user', content='Hello', metadata={})"
 
     # copy 不绑定原容器
     m2 = m.copy()
