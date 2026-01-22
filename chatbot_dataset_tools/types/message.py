@@ -8,10 +8,10 @@ class Message:
     content: str = ""
     metadata: dict = field(default_factory=dict)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"[{self.role}] {self.content}"
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"Message(role={self.role!r}, content={self.content!r})"
 
     def copy(self) -> "Message":

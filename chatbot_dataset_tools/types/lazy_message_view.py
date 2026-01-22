@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Callable, List, TypeAlias, TYPE_CHECKING
+from typing import Callable, List, Union, TypeAlias, overload, TYPE_CHECKING
 from .message import Message, MessageIt
 from .message_list import MessageList
 
@@ -49,19 +49,25 @@ class LazyMessageView:
     def __iter__(self):
         return self._iter()
 
-    def __len__(self):
+    def __len__(self) -> int:
         # 注意：惰性视图需要遍历来计算长度
         return sum(1 for _ in self._iter())
 
-    def __getitem__(self, idx: int | slice):
+    @overload
+    def __getitem__(self, idx: int) -> Message: ...
+
+    @overload
+    def __getitem__(self, idx: slice) -> LazyMessageView: ...
+
+    def __getitem__(self, idx: int | slice) -> Union[Message, LazyMessageView]:
         msgs = self.to_list()
         result = msgs[idx]
         if isinstance(result, List):
             return LazyMessageView(MessageList(result))
         return result
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"LazyMessageView({self.to_list()!r})"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"<LazyMessageView({len(self)} messages)>"

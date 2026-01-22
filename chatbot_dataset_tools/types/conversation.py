@@ -16,15 +16,15 @@ class Conversation:
     def messages(self) -> MessageList:
         return self._data
 
-    def view(self):
+    def view(self) -> LazyMessageView:
         from .lazy_message_view import LazyMessageView
 
         return LazyMessageView(self._data)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"Conversation({self._data!r})"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"<Conversation({len(self._data)} messages)>"
 
     @overload
