@@ -4,9 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "chatbot-dataset-tools"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
-    "pydantic>=2.0.0"
+    "pytest"
 ]
 
 [tool.setuptools.packages.find]
