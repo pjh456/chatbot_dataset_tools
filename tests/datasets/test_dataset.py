@@ -1,6 +1,8 @@
 import pytest
 from chatbot_dataset_tools.datasets import Dataset, DatasetLoader
 from chatbot_dataset_tools.types import Message, Conversation
+from chatbot_dataset_tools.ops.filters import min_turns
+from chatbot_dataset_tools.ops.transforms import rename_roles
 
 
 def test_dataset_base_class():
@@ -27,11 +29,11 @@ def test_dataset_fluent_api():
     ds = DatasetLoader.from_list([c1, c2, c3])
 
     # 1. 测试 filter_turns
-    filtered = ds.filter_turns(min_turns=2)
+    filtered = ds.filter(min_turns(2))
     assert len(filtered.to_list()) == 2
 
     # 2. 测试 rename_roles
-    renamed = ds.rename_roles({"human": "user", "gpt": "assistant"})
+    renamed = ds.map(rename_roles({"human": "user", "gpt": "assistant"}))
     items = renamed.to_list()
     assert items[2].messages[0].role == "user"
     assert items[2].messages[1].role == "assistant"
@@ -42,8 +44,8 @@ def test_dataset_fluent_api():
 
     # 4. 测试链式调用组合
     final_ds = (
-        ds.filter_turns(min_turns=2)
-        .rename_roles({"human": "user", "gpt": "assistant"})
+        ds.filter(min_turns(2))
+        .map(rename_roles({"human": "user", "gpt": "assistant"}))
         .limit(1)
     )
     result = final_ds.to_list()

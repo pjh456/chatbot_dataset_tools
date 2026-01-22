@@ -34,7 +34,7 @@ def test_message_list():
     assert len(ml3) == 10
 
     # last / copy
-    last_msg = ml.last()
+    last_msg = ml.last()[0]
     assert isinstance(last_msg, Message)
     last_two = ml.last(2)
     assert isinstance(last_two, MessageList)

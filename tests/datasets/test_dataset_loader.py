@@ -3,6 +3,7 @@ import tempfile
 from chatbot_dataset_tools.types import Message, Conversation
 from chatbot_dataset_tools.datasets import DatasetLoader
 from pathlib import Path
+from chatbot_dataset_tools.ops.transforms import rename_roles
 
 
 def test_dataset_loader():
@@ -70,7 +71,7 @@ def test_dataset_jsonl_io():
 
         # 3. 测试写入 JSONL (第二次遍历)
         # 这一步会触发 Dataset 重新打开文件流
-        ds.rename_roles({"user": "human"}).to_jsonl(out_path)
+        ds.map(rename_roles({"user": "human"})).to_jsonl(out_path)
 
         # 4. 验证写入的文件内容
         assert out_path.exists()
