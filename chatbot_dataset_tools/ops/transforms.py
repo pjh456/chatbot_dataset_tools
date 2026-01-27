@@ -31,7 +31,7 @@ def strip_content() -> Callable[[Conversation], Conversation]:
 
 
 def merge_consecutive_roles(
-    sep: Optional[str] = "\n",
+    sep: Optional[str] = None,
 ) -> Callable[[Conversation], Conversation]:
     """合并连续出现的同角色消息（比如两个 user 连续发消息）"""
 
