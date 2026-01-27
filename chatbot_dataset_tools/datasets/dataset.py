@@ -1,6 +1,5 @@
 from __future__ import annotations
 from pathlib import Path
-import json
 from typing import Iterator, Callable, TypeVar, Generic, TYPE_CHECKING
 from chatbot_dataset_tools.types import Conversation
 
@@ -8,6 +7,7 @@ T = TypeVar("T", bound=Conversation)
 
 if TYPE_CHECKING:
     from .lazy_dataset import LazyDataset
+    from .in_memory_dataset import InMemoryDataset
 
 
 class Dataset(Generic[T]):
@@ -41,6 +41,8 @@ class Dataset(Generic[T]):
 
     def to_jsonl(self, path: str | Path) -> None:
         """将数据集保存为 jsonl 格式"""
+        import json
+
         path = Path(path)
         with open(path, "w", encoding="utf-8") as f:
             for item in self:
@@ -62,3 +64,32 @@ class Dataset(Generic[T]):
                 yield item
 
         return LazyDataset(generator())
+
+    def shuffle(self, seed: int = 42) -> InMemoryDataset[T]:
+        """打乱数据集。注意：这会将所有数据加载到内存。"""
+        import random
+
+        data = self.to_list()
+        random.seed(seed)
+        random.shuffle(data)
+        from .in_memory_dataset import InMemoryDataset
+
+        return InMemoryDataset(data)
+
+    def split(self, ratio: float) -> tuple[Dataset[T], Dataset[T]]:
+        """按照比例切分数据集 (例如 0.8 将返回 80% 的训练集和 20% 的验证集)"""
+        data = self.to_list()
+        split_idx = int(len(data) * ratio)
+        from .in_memory_dataset import InMemoryDataset
+
+        return InMemoryDataset(data[:split_idx]), InMemoryDataset(data[split_idx:])
+
+    def sample(self, n: int, seed: int = 42) -> InMemoryDataset[T]:
+        import random
+
+        data = self.to_list()
+        random.seed(seed)
+        sampled_data = random.sample(data, min(n, len(data)))
+        from .in_memory_dataset import InMemoryDataset
+
+        return InMemoryDataset(sampled_data)
