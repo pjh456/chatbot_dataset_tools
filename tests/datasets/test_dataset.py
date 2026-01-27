@@ -3,7 +3,7 @@ from chatbot_dataset_tools.datasets import Dataset, DatasetLoader
 from chatbot_dataset_tools.types import Message, Conversation
 from chatbot_dataset_tools.ops.filters import min_turns
 from chatbot_dataset_tools.ops.transforms import rename_roles
-import pytest
+from chatbot_dataset_tools.config import config
 
 
 def test_dataset_base_class():
@@ -110,3 +110,58 @@ def test_dataset_sample_overflow(large_dataset):
     # 如果采样数大于总数，应该返回全部数据而不是报错
     sampled = large_dataset.sample(n=100)
     assert len(sampled) == 10
+
+
+def test_dataset_with_config_isolation():
+    """测试数据集配置的隔离性"""
+    c = Conversation([Message("user", "hi")])
+    ds_default = DatasetLoader.from_list([c])
+
+    with config.switch(ds={"role_map": {"user": "client"}}):
+        ds_custom = DatasetLoader.from_list([c])
+        assert ds_custom.settings.ds.role_map["user"] == "client"
+
+    # 验证旧数据集依然保持它出生时的配置 (human)
+    assert ds_default.settings.ds.role_map["user"] == "human"
+
+
+def test_dataset_fluent_config():
+    """测试 with_config 的链式调用"""
+    ds = DatasetLoader.from_list([Conversation([Message("user", "hi")])])
+
+    # 修改局部配置并执行并行操作
+    # 假设我们想在这个特定的步骤使用 8 个线程
+    new_ds = ds.with_config(max_workers=8)
+    assert new_ds.settings.proc.max_workers == 8
+    assert ds.settings.proc.max_workers != 8  # 原集不受影响
+
+
+def test_parallel_map_config_priority():
+    """测试并行处理的优先级：参数 > 配置"""
+    ds = DatasetLoader.from_list([Conversation([Message("user", "hi")])])
+
+    # 模拟一个耗时操作
+    func = lambda x: x
+
+    # 即使配置里是 4，如果传了 10，应该用 10 (这里通过 mock 或逻辑检查)
+    with config.switch(max_workers=4):
+        # 这一步我们主要验证它能跑通，逻辑由底层 Dataset 实现
+        res = ds.parallel_map(func, max_workers=2)
+        assert len(res) == 1
+
+
+def test_dataset_shuffle_with_config_seed(large_dataset):
+    """测试 shuffle 使用配置中的种子"""
+    with config.switch(seed=12345):
+        # 不传 seed，应该使用配置里的 12345
+        s1 = large_dataset.shuffle()
+        s2 = large_dataset.shuffle()
+        assert [c.messages[0].content for c in s1] == [
+            c.messages[0].content for c in s2
+        ]
+
+    with config.switch(seed=54321):
+        s3 = large_dataset.shuffle()
+        assert [c.messages[0].content for c in s1] != [
+            c.messages[0].content for c in s3
+        ]

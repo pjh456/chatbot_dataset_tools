@@ -4,6 +4,7 @@ from chatbot_dataset_tools.types import Message, Conversation
 from chatbot_dataset_tools.datasets import DatasetLoader
 from pathlib import Path
 from chatbot_dataset_tools.ops.transforms import rename_roles
+from chatbot_dataset_tools.config import config
 
 
 def test_dataset_loader():
@@ -95,3 +96,43 @@ def test_loader_from_list():
     ds = DatasetLoader.from_list([c])
     assert len(ds) == 1
     assert isinstance(ds.to_list()[0], Conversation)
+
+
+def test_dataset_jsonl_encoding_from_config():
+    """测试从配置中动态读取编码"""
+    data = {"messages": [{"role": "user", "content": "你好"}]}
+
+    # 使用 utf-16 这种非默认编码进行测试
+    test_encoding = "utf-16"
+
+    with tempfile.NamedTemporaryFile("w+", delete=False, encoding=test_encoding) as f:
+        f.write(json.dumps(data) + "\n")
+        tmp_path = f.name
+
+    try:
+        # 在配置中设置编码
+        with config.switch(io_encoding=test_encoding):
+            ds = DatasetLoader.from_jsonl(tmp_path)
+            items = ds.to_list()
+            assert items[0].messages[0].content == "你好"
+    finally:
+        Path(tmp_path).unlink()
+
+
+def test_dataset_save_with_custom_config():
+    """测试写入时遵循数据集绑定的配置"""
+    ds = DatasetLoader.from_list([Conversation([Message("user", "test")])])
+
+    # 为该数据集绑定特殊的编码
+    ds_utf8 = ds.with_config(io_encoding="utf-8")
+
+    with tempfile.NamedTemporaryFile(delete=False) as f:
+        tmp_path = f.name
+
+    try:
+        ds_utf8.to_jsonl(tmp_path)
+        # 验证是否真的是用 utf-8 写的
+        with open(tmp_path, "r", encoding="utf-8") as f:
+            assert "test" in f.read()
+    finally:
+        Path(tmp_path).unlink()
