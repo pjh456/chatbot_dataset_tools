@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from .base import BaseFormatter
 from chatbot_dataset_tools.types import Message, Conversation
 
@@ -11,6 +11,9 @@ class AlpacaFormatter(BaseFormatter):
         "output": "It's a branch of physics..."
     }
     """
+
+    def __init__(self, role_map: Optional[Dict[str, str]] = None):
+        super().__init__(role_map)
 
     def format(self, conv: Conversation) -> Dict[str, Any]:
         res = {"instruction": "", "input": "", "output": ""}

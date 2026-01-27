@@ -1,6 +1,6 @@
 import re
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Protocol, runtime_checkable
+from typing import Any, Dict, Optional, Protocol, runtime_checkable
 from chatbot_dataset_tools.types import Conversation
 
 
@@ -38,7 +38,16 @@ class FieldMapper:
 
 
 class BaseFormatter(ABC):
-    role_map: Dict[str, str] = {}
+    def __init__(self, role_map: Optional[Dict[str, str]] = None):
+        # 如果构造时不传，则留空，后面动态去 config 拿
+        self._role_map = role_map
+
+    @property
+    def role_map(self) -> Dict[str, str]:
+        # 优先级：构造函数参数 > 当前全局配置上下文
+        from chatbot_dataset_tools.config import config
+
+        return self._role_map or config.settings.ds.role_map
 
     def _get_reverse_role_map(self) -> Dict[str, str]:
         return {v: k for k, v in self.role_map.items()}

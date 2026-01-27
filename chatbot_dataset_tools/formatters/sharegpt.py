@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from .base import BaseFormatter
 from chatbot_dataset_tools.types import Message, Conversation
 
@@ -14,7 +14,8 @@ class ShareGPTFormatter(BaseFormatter):
     }
     """
 
-    role_map = {"user": "human", "assistant": "gpt", "system": "system"}
+    def __init__(self, role_map: Optional[Dict[str, str]] = None):
+        super().__init__(role_map)
 
     def format(self, conv: Conversation) -> Dict[str, Any]:
         conv_list = []

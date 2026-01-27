@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from .base import BaseFormatter
 from chatbot_dataset_tools.types import Message, Conversation
 
@@ -14,8 +14,8 @@ class OpenAIFormatter(BaseFormatter):
     }
     """
 
-    # OpenAI 的角色名通常就是标准名，不需要映射，但为了严谨我们可以写一下
-    role_map = {"user": "user", "assistant": "assistant", "system": "system"}
+    def __init__(self, role_map: Optional[Dict[str, str]] = None):
+        super().__init__(role_map)
 
     def format(self, conv: Conversation) -> Dict[str, Any]:
         messages = []
@@ -27,5 +27,13 @@ class OpenAIFormatter(BaseFormatter):
 
     def parse(self, data: Dict[str, Any]) -> Conversation:
         raw_msgs = data.get("messages", [])
-        messages = [Message(role=m["role"], content=m["content"]) for m in raw_msgs]
+        rev_map = self._get_reverse_role_map()
+
+        messages = []
+        for m in raw_msgs:
+            external_role: str = m.get("role", "")
+            # 将外部名转回内部名
+            internal_role: str = rev_map.get(external_role, external_role)
+            messages.append(Message(role=internal_role, content=m.get("content", "")))
+
         return Conversation(messages)
