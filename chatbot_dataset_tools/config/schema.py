@@ -27,6 +27,8 @@ class DatasetDefaults:
         }
     )
     format: str = "jsonl"
+    msg_sep: str = "\n"
+    io_encoding: str = "utf-8"
 
 
 @dataclass(frozen=True)

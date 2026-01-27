@@ -1,5 +1,6 @@
 from typing import Callable, List
 from chatbot_dataset_tools.types import Conversation
+from chatbot_dataset_tools.config import config
 
 
 def min_turns(n: int) -> Callable[[Conversation], bool]:
@@ -51,7 +52,17 @@ def is_valid_alternating() -> Callable[[Conversation], bool]:
     def _filter(conv: Conversation) -> bool:
         if not conv.messages:
             return False
-        roles = [m.role for m in conv.messages]
+
+        role_map = config.settings.ds.role_map
+
+        # 过滤掉系统消息后检查交替
+        relevant_messages = [
+            m for m in conv.messages if m.role != role_map.get("system", "system")
+        ]
+        if not relevant_messages:
+            return False
+
+        roles = [m.role for m in relevant_messages]
         for i in range(len(roles) - 1):
             if roles[i] == roles[i + 1]:
                 return False
