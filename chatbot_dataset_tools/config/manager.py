@@ -45,15 +45,21 @@ class ConfigManager:
         return self._registry.get(identifier)
 
     @contextmanager
-    def switch(self, identifier: Optional[str] = None, **temporary_changes):
+    def switch(
+        self, identifier: ConfigContext | Optional[str] = None, **temporary_changes
+    ):
         """
         核心方法：切换上下文。
         1. 如果传了 identifier，则切换到对应的已注册上下文
         2. 如果传了 temporary_changes，则在当前基础上做临时修改
         """
-        base_ctx: ConfigContext = (
-            self.get_context(identifier) if identifier else self.current
-        ) or self.current
+        # 如果 identifier 本身就是 ConfigContext 对象，直接使用它
+        if isinstance(identifier, ConfigContext):
+            base_ctx = identifier
+        else:
+            base_ctx = (
+                self.get_context(identifier) if identifier else self.current
+            ) or self.current
 
         if temporary_changes:
             # 临时产生一个新的匿名上下文
