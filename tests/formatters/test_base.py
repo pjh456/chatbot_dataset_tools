@@ -82,6 +82,12 @@ def test_reverse_role_map_generation():
     class Dummy(BaseFormatter):
         role_map = {"a": "1", "b": "2"}
 
+        def format(self, conv):
+            return None
+
+        def parse(self, data):
+            return Conversation([])
+
     d = Dummy()
     rev = d._get_reverse_role_map()
     assert rev == {"1": "a", "2": "b"}

@@ -1,8 +1,10 @@
 import re
-from typing import Any, Dict, TypeVar, Generic, Protocol
-from chatbot_dataset_tools.types import Message, Conversation
+from abc import ABC, abstractmethod
+from typing import Any, Dict, Protocol, runtime_checkable
+from chatbot_dataset_tools.types import Conversation
 
 
+@runtime_checkable
 class Formatter(Protocol):
     def format(self, conv: Conversation) -> Any:
         """将对象转为字典/Json"""
@@ -35,11 +37,18 @@ class FieldMapper:
         return match.groupdict() if match else {}
 
 
-class BaseFormatter:
-    """支持角色映射和变量逻辑的基类"""
-
-    # 子类需要定义角色映射: {"user": "human", "assistant": "gpt"}
+class BaseFormatter(ABC):
     role_map: Dict[str, str] = {}
 
-    def _get_reverse_role_map(self):
+    def _get_reverse_role_map(self) -> Dict[str, str]:
         return {v: k for k, v in self.role_map.items()}
+
+    @abstractmethod
+    def format(self, conv: Conversation) -> Any:
+        """强制子类实现"""
+        pass
+
+    @abstractmethod
+    def parse(self, data: Any) -> Conversation:
+        """强制子类实现"""
+        pass
