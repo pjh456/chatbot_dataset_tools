@@ -47,7 +47,10 @@ class BaseFormatter(ABC):
         # 优先级：构造函数参数 > 当前全局配置上下文
         from chatbot_dataset_tools.config import config
 
-        return self._role_map or config.settings.ds.role_map
+        # 显式检查 None，允许传入空字典覆盖全局配置
+        if self._role_map is not None:
+            return self._role_map
+        return config.settings.ds.role_map
 
     def _get_reverse_role_map(self) -> Dict[str, str]:
         return {v: k for k, v in self.role_map.items()}
