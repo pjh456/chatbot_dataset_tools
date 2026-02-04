@@ -4,5 +4,5 @@ from . import ops
 from . import formatters
 from . import config
 
-__version__ = "0.5.3"
+__version__ = "0.5.4"
 __all__ = ["types", "datasets", "ops", "formatters", "config"]
