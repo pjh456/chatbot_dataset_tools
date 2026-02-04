@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Dict, Any, Optional, List
+from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -30,6 +31,13 @@ class ProcessingConfig:
 
 
 @dataclass(frozen=True)
+class FileConfig:
+    path: str | Path = ""
+    format: str = "jsonl"
+    encoding: str = "utf-8"
+
+
+@dataclass(frozen=True)
 class DatasetDefaults:
     role_map: Dict[str, str] = field(
         default_factory=lambda: {
@@ -38,9 +46,7 @@ class DatasetDefaults:
             "system": "system",
         }
     )
-    format: str = "jsonl"
     msg_sep: str = "\n"
-    io_encoding: str = "utf-8"
 
 
 @dataclass(frozen=True)
@@ -48,5 +54,6 @@ class GlobalSettings:
     api: APIConfig = APIConfig()
     http: HTTPConfig = HTTPConfig()
     proc: ProcessingConfig = ProcessingConfig()
+    file: FileConfig = FileConfig()
     ds: DatasetDefaults = DatasetDefaults()
     extra: Dict[str, Any] = field(default_factory=dict)
