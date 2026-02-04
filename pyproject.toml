@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "chatbot-dataset-tools"
-version = "0.5.5"
+version = "0.6.0"
 dependencies = [
     "pytest"
 ]
