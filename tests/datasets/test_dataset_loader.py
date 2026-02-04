@@ -111,7 +111,7 @@ def test_dataset_jsonl_encoding_from_config():
 
     try:
         # 在配置中设置编码
-        with config.switch(io_encoding=test_encoding):
+        with config.switch(encoding=test_encoding):
             ds = DatasetLoader.from_jsonl(tmp_path)
             items = ds.to_list()
             assert items[0].messages[0].content == "你好"
@@ -124,7 +124,7 @@ def test_dataset_save_with_custom_config():
     ds = DatasetLoader.from_list([Conversation([Message("user", "test")])])
 
     # 为该数据集绑定特殊的编码
-    ds_utf8 = ds.with_config(io_encoding="utf-8")
+    ds_utf8 = ds.with_config(encoding="utf-8")
 
     with tempfile.NamedTemporaryFile(delete=False) as f:
         tmp_path = f.name

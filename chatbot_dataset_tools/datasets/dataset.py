@@ -84,7 +84,7 @@ class Dataset(Generic[T]):
         # 优先级：参数 > 绑定的设置
         path = Path(path)
         # 保存过程中应当使用数据集自身的属性而非最新的上下文！
-        encoding = encoding or self.settings.ds.io_encoding
+        encoding = encoding or self.settings.file.encoding
 
         with open(path, "w", encoding=encoding) as f:
             for item in self:

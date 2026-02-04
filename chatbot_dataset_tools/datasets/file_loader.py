@@ -12,7 +12,7 @@ class FileLoader(Iterable[Conversation]):
         self.path = path
         self.format = format
         # 如果初始化没传 encoding，则锁定为那一刻的全局配置
-        self.encoding = encoding or config.settings.ds.io_encoding
+        self.encoding = encoding or config.settings.file.encoding
 
     def __iter__(self) -> Iterator[Conversation]:
         """每次调用 iter() 都会重新打开文件，从而支持多次遍历"""

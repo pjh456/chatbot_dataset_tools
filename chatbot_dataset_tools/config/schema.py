@@ -35,6 +35,7 @@ class FileConfig:
     path: str | Path = ""
     format: str = "jsonl"
     encoding: str = "utf-8"
+    indent: int = 2
 
 
 @dataclass(frozen=True)

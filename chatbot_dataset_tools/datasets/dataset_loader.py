@@ -19,7 +19,7 @@ class DatasetLoader:
         loader = FileLoader(
             Path(path),
             format="json",
-            encoding=encoding or current_ctx.settings.ds.io_encoding,
+            encoding=encoding or current_ctx.settings.file.encoding,
         )
         return LazyDataset(loader, ctx=current_ctx)
 
@@ -33,7 +33,7 @@ class DatasetLoader:
         loader = FileLoader(
             Path(path),
             format="jsonl",
-            encoding=encoding or current_ctx.settings.ds.io_encoding,
+            encoding=encoding or current_ctx.settings.file.encoding,
         )
         return LazyDataset(loader, ctx=current_ctx)
 
