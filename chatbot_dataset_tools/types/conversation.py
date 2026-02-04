@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Union, Iterable, Dict, List, Any, overload, TYPE_CHECKING
+from typing import Union, Iterable, Mapping, Dict, List, Any, overload, TYPE_CHECKING
 from dataclasses import dataclass, asdict, field
 from .message import Message
 from .message_list import MessageList
@@ -26,21 +26,33 @@ class Conversation:
 
         return LazyMessageView(self.data)
 
+    @overload
     @classmethod
-    def from_dict(cls, data: dict):
-        messages_data: List[Dict[str, Any]] = []
-        metadata: Dict[str, Any] = {}
+    def from_dict(
+        cls,
+        data: Mapping[str, Any],
+    ) -> "Conversation": ...
 
-        if isinstance(data, dict):
-            messages_data: List[Dict[str, Any]] = data.get("messages", [])
-            metadata: Dict[str, Any] = data.get("metadata", {})
-        elif isinstance(data, list):
-            messages_data: List[Dict[str, Any]] = data
+    @overload
+    @classmethod
+    def from_dict(
+        cls,
+        data: Iterable[Mapping[str, Any]],
+    ) -> "Conversation": ...
+
+    @classmethod
+    def from_dict(cls, data) -> "Conversation":
+        if isinstance(data, Mapping):
+            messages_data = list(data.get("messages", []))
+            metadata = data.get("metadata", {})
+        else:
+            messages_data = list(data)
+            metadata = {}
 
         messages = [Message(**m) for m in messages_data]
         return cls(messages, metadata)
 
-    def to_dict(self):
+    def to_dict(self) -> Dict[str, Any]:
         return {"messages": [asdict(m) for m in self.data], "metadata": self.metadata}
 
     def __str__(self) -> str:
