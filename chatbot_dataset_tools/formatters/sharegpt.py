@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Mapping
 from .base import BaseFormatter
 from chatbot_dataset_tools.types import Message, Conversation
 
@@ -29,7 +29,7 @@ class ShareGPTFormatter(BaseFormatter):
             res["metadata"] = conv.metadata
         return res
 
-    def parse(self, data: Dict[str, Any]) -> Conversation:
+    def parse(self, data: Mapping[str, Any]) -> Conversation:
         rev_map = self._get_reverse_role_map()
         raw_msgs = data.get("conversations", [])
 

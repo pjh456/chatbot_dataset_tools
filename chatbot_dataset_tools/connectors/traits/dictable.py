@@ -1,4 +1,4 @@
-from typing import Mapping, MutableMapping, Any, TypeVar, Protocol
+from typing import Mapping, Any, TypeVar, Protocol
 
 T_dictable = TypeVar("T_dictable", covariant=True)
 
@@ -9,4 +9,4 @@ class FromDictType(Protocol[T_dictable]):
 
 
 class ToDictType(Protocol):
-    def to_dict(self) -> MutableMapping[str, Any]: ...
+    def to_dict(self) -> dict[str, Any]: ...

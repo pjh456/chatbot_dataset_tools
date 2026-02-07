@@ -1,10 +1,10 @@
-from typing import Callable, Dict, Optional
+from typing import Callable, Mapping, Optional
 from chatbot_dataset_tools.types import Conversation
 from chatbot_dataset_tools.config import config
 
 
 def rename_roles(
-    mapping: Optional[Dict[str, str]] = None,
+    mapping: Optional[Mapping[str, str]] = None,
 ) -> Callable[[Conversation], Conversation]:
     """重命名角色名称"""
 

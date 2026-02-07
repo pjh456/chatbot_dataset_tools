@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Mapping
 from .base import BaseFormatter
 from chatbot_dataset_tools.types import Message, Conversation
 
@@ -35,7 +35,7 @@ class AlpacaFormatter(BaseFormatter):
 
         return res
 
-    def parse(self, data: Dict[str, Any]) -> Conversation:
+    def parse(self, data: Mapping[str, Any]) -> Conversation:
         msgs = []
         inst = data.get("instruction", "")
         inp = data.get("input", "")

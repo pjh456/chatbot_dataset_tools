@@ -1,4 +1,4 @@
-from typing import Callable, List
+from typing import Callable, Iterable
 from chatbot_dataset_tools.types import Conversation
 from chatbot_dataset_tools.config import config
 
@@ -23,7 +23,7 @@ def has_role(role: str) -> Callable[[Conversation], bool]:
     return lambda conv: any(m.role == role for m in conv.messages)
 
 
-def has_roles(roles: List[str]) -> Callable[[Conversation], bool]:
+def has_roles(roles: Iterable[str]) -> Callable[[Conversation], bool]:
     """对话中必须包含列表里的所有角色"""
     return lambda conv: all(
         any(m.role == role for m in conv.messages) for role in roles
