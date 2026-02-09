@@ -4,7 +4,7 @@ from .manager import ConfigManager
 
 config = ConfigManager()
 
-__version__ = "0.5.5"
+__version__ = "0.6.2"
 __all__ = [
     "config",
     "APIConfig",

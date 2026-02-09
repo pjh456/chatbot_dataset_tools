@@ -1,4 +1,3 @@
-import json
 import httpx
 from typing import (
     Any,
@@ -8,9 +7,9 @@ from typing import (
     Dict,
     List,
     Union,
-    Type,
     Sequence,
     Mapping,
+    Type,
 )
 from .base import T, DataSource, DataSink
 from .traits import FromDictType, ToDictType
@@ -23,8 +22,12 @@ class HTTPSource(DataSource[T]):
         self,
         http_cfg: Optional[HTTPConfig] = None,
         conv_type: Type[FromDictType[T]] = Conversation,
+        **overrides,
     ):
-        self.http_cfg = http_cfg or config.current.settings.http
+        base_cfg = config.current.settings.http
+        if http_cfg:
+            base_cfg = http_cfg
+        self.http_cfg = base_cfg.derive(**overrides)
         self.conv_type = conv_type
 
         self.url = self.http_cfg.url

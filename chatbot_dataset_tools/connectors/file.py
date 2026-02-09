@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from typing import Iterable, Iterator, Optional, Type
 from .base import T, DataSource, DataSink
 from .traits import FromDictType, ToDictType
@@ -9,10 +10,14 @@ from chatbot_dataset_tools.config import FileConfig, config
 class FileSource(DataSource[T]):
     def __init__(
         self,
-        file_cfg: Optional[FileConfig] = None,
+        file_cfg: Optional[FileConfig] = None,  # 也允许传完整的 cfg
         conv_type: Type[FromDictType[T]] = Conversation,
+        **overrides,  # 甚至允许传 encoding="gbk"
     ) -> None:
-        self.file_cfg = file_cfg or config.current.settings.file
+        base_cfg = config.current.settings.file
+        if file_cfg:
+            base_cfg = file_cfg
+        self.file_cfg = base_cfg.derive(**overrides)
         self.conv_type = conv_type
 
         self.path = self.file_cfg.path
@@ -40,7 +45,7 @@ class FileSource(DataSource[T]):
             for conv in data:
                 yield self.conv_type.from_dict(conv)
 
-    def _load_jsonl(self) -> Iterator[T]:
+    def _load_jsonl(self) -> Iterator[Conversation]:
         with open(self.path, "r", encoding=self.encoding) as f:
             for line in f:
                 if line:
