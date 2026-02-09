@@ -71,8 +71,11 @@ class HTTPSource(DataSource[T]):
 
 
 class HTTPSink(DataSink[T]):
-    def __init__(self, http_cfg: Optional[HTTPConfig] = None):
-        self.http_cfg = http_cfg or config.current.settings.http
+    def __init__(self, http_cfg: Optional[HTTPConfig] = None, **overrides):
+        base_cfg = config.current.settings.http
+        if http_cfg:
+            base_cfg = http_cfg
+        self.http_cfg = base_cfg.derive(**overrides)
 
         self.url = self.http_cfg.url
         self.method = self.http_cfg.method

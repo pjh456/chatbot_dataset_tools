@@ -10,7 +10,7 @@ from chatbot_dataset_tools.config import FileConfig, config
 class FileSource(DataSource[T]):
     def __init__(
         self,
-        file_cfg: Optional[FileConfig] = None,  # 也允许传完整的 cfg
+        file_cfg: Optional[FileConfig] = None,  # 允许传完整的 cfg
         conv_type: Type[FromDictType[T]] = Conversation,
         **overrides,  # 甚至允许传 encoding="gbk"
     ) -> None:
@@ -55,8 +55,11 @@ class FileSource(DataSource[T]):
 
 
 class FileSink(DataSink[T]):
-    def __init__(self, file_cfg: Optional[FileConfig] = None) -> None:
-        self.file_cfg = file_cfg or config.current.settings.file
+    def __init__(self, file_cfg: Optional[FileConfig] = None, **overrides) -> None:
+        base_cfg = config.current.settings.file
+        if file_cfg:
+            base_cfg = file_cfg
+        self.file_cfg = base_cfg.derive(**overrides)
 
         self.path = self.file_cfg.path
         self.format = self.file_cfg.format.lower()
