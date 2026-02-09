@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Optional, Iterator, Callable, TypeVar, Generic, TYPE_CHECKING
 from chatbot_dataset_tools.types import Conversation
 from chatbot_dataset_tools.config import ConfigContext, GlobalSettings, config
+from chatbot_dataset_tools.connectors import DataSink, FileSink, HTTPSink
 
 T = TypeVar("T", bound=Conversation)
 
@@ -64,7 +65,7 @@ class Dataset(Generic[T]):
     def parallel_map(
         self, func: Callable[[T], T], max_workers: int = 4
     ) -> InMemoryDataset[T]:
-        """并行执行 AI 处理（因为 IO 密集型操作单线程太慢）"""
+        """并行执行（IO 密集型操作单线程太慢）"""
         from concurrent.futures import ThreadPoolExecutor
         from .in_memory_dataset import InMemoryDataset
 
@@ -77,19 +78,45 @@ class Dataset(Generic[T]):
             results = list(executor.map(func, items))
         return InMemoryDataset(results, ctx=self.ctx)
 
-    def to_jsonl(self, path: str | Path, encoding: Optional[str] = None) -> None:
-        """将数据集保存为 jsonl 格式"""
-        import json
+    def save_to(self, sink: DataSink[T]) -> None:
+        """底层保存接口：接受任何实现了 DataSink 的对象"""
+        sink.save(self)
 
-        # 优先级：参数 > 绑定的设置
-        path = Path(path)
-        # 保存过程中应当使用数据集自身的属性而非最新的上下文！
-        encoding = encoding or self.settings.file.encoding
+    def to_json(self, path: str | Path, **kwargs) -> None:
+        """
+        快捷方式：保存输出为 JSON
+        优先级处理：
+        1. kwargs (显式传参) > 2. self.ctx (数据集绑定的配置) > 3. 全局默认配置
+        """
+        # 通过 switch 临时进入数据集自身的上下文
+        with config.switch(self.ctx):
+            # 在该上下文内创建 Sink，FileSink 内部会自动合并当前配置和 kwargs
+            sink = FileSink(path=path, format="json", **kwargs)
+            self.save_to(sink)
 
-        with open(path, "w", encoding=encoding) as f:
-            for item in self:
-                json_line = json.dumps(item.to_dict(), ensure_ascii=False)
-                f.write(json_line + "\n")
+    def to_jsonl(self, path: str | Path, **kwargs) -> None:
+        """
+        快捷方式：保存输出为 JSONL
+        优先级处理：
+        1. kwargs (显式传参) > 2. self.ctx (数据集绑定的配置) > 3. 全局默认配置
+        """
+        # 通过 switch 临时进入数据集自身的上下文
+        with config.switch(self.ctx):
+            # 在该上下文内创建 Sink，FileSink 内部会自动合并当前配置和 kwargs
+            sink = FileSink(path=path, format="jsonl", **kwargs)
+            self.save_to(sink)
+
+    def to_http(self, url: str, **kwargs) -> None:
+        """
+        快捷方式：保存输出为到远程
+        优先级处理：
+        1. kwargs (显式传参) > 2. self.ctx (数据集绑定的配置) > 3. 全局默认配置
+        """
+        # 通过 switch 临时进入数据集自身的上下文
+        with config.switch(self.ctx):
+            # 在该上下文内创建 Sink，HTTPSink 内部会自动合并当前配置和 kwargs
+            sink = HTTPSink(url=url, **kwargs)
+            self.save_to(sink)
 
     def filter(self, func: Callable[[T], bool]) -> Dataset[T]:
         raise NotImplementedError
