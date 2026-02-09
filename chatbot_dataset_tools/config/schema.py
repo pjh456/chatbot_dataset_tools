@@ -25,6 +25,21 @@ class APIConfig(BaseConfig):
 
 
 @dataclass(frozen=True)
+class ProcessingConfig(BaseConfig):
+    max_workers: int = 4
+    batch_size: int = 32
+    seed: int = 42
+
+
+@dataclass(frozen=True)
+class FileConfig(BaseConfig):
+    path: str | Path = ""
+    format: str = "jsonl"
+    encoding: str = "utf-8"
+    indent: int = 2
+
+
+@dataclass(frozen=True)
 class HTTPConfig(BaseConfig):
     url: str = ""
     method: str = "GET"
@@ -38,18 +53,11 @@ class HTTPConfig(BaseConfig):
 
 
 @dataclass(frozen=True)
-class ProcessingConfig(BaseConfig):
-    max_workers: int = 4
-    batch_size: int = 32
-    seed: int = 42
-
-
-@dataclass(frozen=True)
-class FileConfig(BaseConfig):
-    path: str | Path = ""
-    format: str = "jsonl"
-    encoding: str = "utf-8"
-    indent: int = 2
+class TaskConfig(BaseConfig):
+    rate_limit: float = 0.0  # 每秒最大请求数 (0 为不限制)
+    max_retries: int = 3  # 失败重试次数
+    ignore_errors: bool = True  # 是否忽略错误继续执行
+    checkpoint_interval: int = 10  # 每处理多少条记录记录一次进度
 
 
 @dataclass(frozen=True)
@@ -70,6 +78,7 @@ class GlobalSettings(BaseConfig):
     http: HTTPConfig = HTTPConfig()
     proc: ProcessingConfig = ProcessingConfig()
     file: FileConfig = FileConfig()
+    task: TaskConfig = TaskConfig()
     ds: DatasetDefaults = DatasetDefaults()
     extra: Dict[str, Any] = field(default_factory=dict)
 

@@ -1,16 +1,26 @@
-from .schema import APIConfig, HTTPConfig, FileConfig, ProcessingConfig, GlobalSettings
+from .schema import (
+    BaseConfig,
+    APIConfig,
+    ProcessingConfig,
+    FileConfig,
+    HTTPConfig,
+    TaskConfig,
+    GlobalSettings,
+)
 from .context import ConfigContext
 from .manager import ConfigManager
 
 config = ConfigManager()
 
-__version__ = "0.6.2"
+__version__ = "0.7.0"
 __all__ = [
     "config",
+    "BaseConfig",
     "APIConfig",
-    "HTTPConfig",
-    "FileConfig",
     "ProcessingConfig",
+    "FileConfig",
+    "HTTPConfig",
+    "TaskConfig",
     "GlobalSettings",
     "ConfigContext",
     "ConfigManager",

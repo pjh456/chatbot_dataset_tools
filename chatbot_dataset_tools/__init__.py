@@ -1,9 +1,10 @@
 from . import types
+from . import config
+from . import connectors
 from . import datasets
 from . import ops
 from . import formatters
-from . import config
-from . import connectors
+from . import tasks
 
-__version__ = "0.6.3"
-__all__ = ["types", "datasets", "ops", "formatters", "config", "connectors"]
+__version__ = "0.7.0"
+__all__ = ["types", "config", "connectors", "datasets", "ops", "formatters", "tasks"]
