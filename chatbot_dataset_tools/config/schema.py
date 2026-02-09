@@ -54,9 +54,18 @@ class HTTPConfig(BaseConfig):
 
 @dataclass(frozen=True)
 class TaskConfig(BaseConfig):
-    rate_limit: float = 0.0  # 每秒最大请求数 (0 为不限制)
+    # 核心并发控制
+    max_workers: int = 4  # 线程池大小
+    rate_limit: float = 0.0  # TPS/QPS 限制 (0 表示不限制)
+
+    # 行为控制
+    ordered_results: bool = (
+        True  # True: 保持输入输出顺序一致; False: 谁先完成谁先返回(吞吐量更高)
+    )
+
     max_retries: int = 3  # 失败重试次数
     ignore_errors: bool = True  # 是否忽略错误继续执行
+
     checkpoint_interval: int = 10  # 每处理多少条记录记录一次进度
 
 
