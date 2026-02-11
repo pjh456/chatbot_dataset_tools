@@ -1,4 +1,3 @@
-# chatbot_dataset_tools/tasks/processor.py
 from abc import ABC, abstractmethod
 from typing import Optional
 from chatbot_dataset_tools.types import Conversation

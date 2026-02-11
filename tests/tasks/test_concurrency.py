@@ -1,6 +1,6 @@
 import time
 from chatbot_dataset_tools.tasks.runner import TaskRunner
-from chatbot_dataset_tools.tasks.processor import BaseProcessor
+from chatbot_dataset_tools.tasks.processors import BaseProcessor
 from chatbot_dataset_tools.types import Message, Conversation
 from chatbot_dataset_tools.config import TaskConfig
 

@@ -1,4 +1,4 @@
-from chatbot_dataset_tools.tasks.processor import BaseProcessor
+from chatbot_dataset_tools.tasks.processors import BaseProcessor
 from chatbot_dataset_tools.types import Message, Conversation
 
 

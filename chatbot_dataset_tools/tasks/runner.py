@@ -2,7 +2,7 @@ import time
 import concurrent.futures
 from typing import Iterable, Iterator, Optional
 from .result import TaskResult
-from .processor import BaseProcessor
+from .processors import BaseProcessor
 from .limiter import TokenBucketLimiter
 from chatbot_dataset_tools.types import Conversation
 from chatbot_dataset_tools.config import config, TaskConfig
