@@ -5,6 +5,7 @@ from chatbot_dataset_tools.types import Conversation
 from chatbot_dataset_tools.config import ConfigContext, GlobalSettings, config
 from chatbot_dataset_tools.connectors import DataSink, FileSink, HTTPSink
 from chatbot_dataset_tools.tasks.processors import BaseProcessor
+from chatbot_dataset_tools.tasks import CheckpointManager
 
 T = TypeVar("T", bound=Conversation)
 
@@ -86,6 +87,7 @@ class Dataset(Generic[T]):
         rate_limit: Optional[float] = None,
         ordered: bool = True,
         ignore_errors: bool = True,
+        checkpoint_path: str = "",
         **runner_kwargs,
     ) -> LazyDataset[Conversation]:
         """
@@ -115,14 +117,37 @@ class Dataset(Generic[T]):
 
         runner = TaskRunner(processor, **task_overrides)
 
+        # 载入进度管理器
+        cp_manager = None
+        if checkpoint_path:
+            cp_manager = CheckpointManager(checkpoint_path)
+
         # 定义结果生成器
         def result_generator():
             # 这里的 self 本身就是 iterable
-            for result in runner.run_stream(self):
+            source_data = self
+
+            if cp_manager:
+                source_data = self.filter(lambda c: not cp_manager.is_processed(c.uid))  # type: ignore
+
+            it = runner.run_stream(source_data)
+            if runner_kwargs.get("show_progress", True):
+                from tqdm import tqdm
+
+                it = tqdm(
+                    it,
+                    total=len(source_data) if hasattr(source_data, "__len__") else None,
+                )
+
+            for result in it:
                 if result.success and result.output:
+                    if cp_manager:
+                        cp_manager.save(result.input.uid)
+
                     # 可以在这里挂载 metadata，比如处理耗时
                     if hasattr(result.output, "metadata"):
                         result.output.metadata.update(result.metadata)
+
                     yield result.output
                 elif not result.success:
                     # 如果配置了不忽略错误，TaskRunner 内部其实已经 raise 了

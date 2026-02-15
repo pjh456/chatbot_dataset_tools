@@ -6,5 +6,5 @@ from . import ops
 from . import formatters
 from . import tasks
 
-__version__ = "0.7.4"
+__version__ = "0.7.5"
 __all__ = ["types", "config", "connectors", "datasets", "ops", "formatters", "tasks"]
