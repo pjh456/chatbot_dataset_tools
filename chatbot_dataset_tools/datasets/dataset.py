@@ -105,7 +105,10 @@ class Dataset(Generic[T]):
         # 载入进度管理器
         cp_manager = None
         if final_task_cfg.checkpoint_path:
-            cp_manager = CheckpointManager(final_task_cfg.checkpoint_path)
+            cp_manager = CheckpointManager(
+                final_task_cfg.checkpoint_path,
+                interval=final_task_cfg.checkpoint_interval,
+            )
 
         # 定义结果生成器
         def result_generator():
@@ -115,34 +118,40 @@ class Dataset(Generic[T]):
             if cp_manager:
                 source_data = self.filter(lambda c: not cp_manager.is_processed(c.uid))  # type: ignore
 
-            it = runner.run_stream(source_data)
-            if final_task_cfg.show_progress:
-                from tqdm import tqdm
+            try:
+                it = runner.run_stream(source_data)
+                if final_task_cfg.show_progress:
+                    from tqdm import tqdm
 
-                # 尝试获取总数，对于 LazyDataset 可能是 None
-                total = None
-                try:
-                    total = len(source_data)
-                except:
-                    pass
-                it = tqdm(
-                    it, total=total, desc=f"Running {processor.__class__.__name__}"
-                )
+                    # 尝试获取总数，对于 LazyDataset 可能是 None
+                    total = None
+                    try:
+                        total = len(source_data)
+                    except:
+                        pass
+                    it = tqdm(
+                        it, total=total, desc=f"Running {processor.__class__.__name__}"
+                    )
 
-            for result in it:
-                if result.success and result.output:
-                    if cp_manager:
-                        cp_manager.save(result.input.uid)
+                for result in it:
+                    if result.success and result.output:
+                        if cp_manager:
+                            cp_manager.save(result.input.uid)
 
-                    # 挂载执行元数据 (如耗时)
-                    if hasattr(result.output, "metadata"):
-                        result.output.metadata.update(result.metadata)
+                        # 挂载执行元数据 (如耗时)
+                        if hasattr(result.output, "metadata"):
+                            result.output.metadata.update(result.metadata)
 
-                    yield result.output
-                elif not result.success:
-                    if not final_task_cfg.ignore_errors:
-                        raise RuntimeError(f"Task failed: {result.error}")
-                    # TODO: 这里未来可以接入 Logger 模块记录失败 ID
+                        yield result.output
+                    elif not result.success:
+                        if not final_task_cfg.ignore_errors:
+                            raise RuntimeError(f"Task failed: {result.error}")
+                        # TODO: 这里未来可以接入 Logger 模块记录失败 ID
+            finally:
+                # 无论任务是正常结束还是报错中断，
+                # 都要尝试将缓冲区内的数据写入磁盘
+                if cp_manager:
+                    cp_manager.flush()
 
         # 返回结果依然继承当前数据集的上下文
         return LazyDataset(result_generator(), ctx=self.ctx)

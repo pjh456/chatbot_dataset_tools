@@ -3,5 +3,5 @@ from .in_memory_dataset import InMemoryDataset
 from .lazy_dataset import LazyDataset
 from .dataset_loader import DatasetLoader
 
-__version__ = "0.7.6"
+__version__ = "0.7.7"
 __all__ = ["Dataset", "InMemoryDataset", "LazyDataset", "DatasetLoader"]
