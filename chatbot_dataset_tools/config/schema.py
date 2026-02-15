@@ -67,6 +67,8 @@ class TaskConfig(BaseConfig):
     ignore_errors: bool = True  # 是否忽略错误继续执行
 
     checkpoint_interval: int = 10  # 每处理多少条记录记录一次进度
+    checkpoint_path: str = ""  # 进度保存文件路径
+    show_progress: bool = True  # 是否显示进度条
 
 
 @dataclass(frozen=True)

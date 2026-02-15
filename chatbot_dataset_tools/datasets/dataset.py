@@ -83,16 +83,10 @@ class Dataset(Generic[T]):
     def run_task(
         self,
         processor: BaseProcessor,
-        max_workers: Optional[int] = None,
-        rate_limit: Optional[float] = None,
-        ordered: bool = True,
-        ignore_errors: bool = True,
-        checkpoint_path: str = "",
-        **runner_kwargs,
+        **overrides,
     ) -> LazyDataset[Conversation]:
         """
-        并发执行任务的入口。
-
+        并发执行任务的入口。.task > global_config
         Args:
             processor: 执行逻辑算子
             max_workers: 并发线程数
@@ -101,26 +95,17 @@ class Dataset(Generic[T]):
             ignore_errors: 是否忽略失败的任务 (True: 失败则丢弃; False: 失败抛出异常)
         """
         from chatbot_dataset_tools.tasks.runner import TaskRunner
-        from chatbot_dataset_tools.config import TaskConfig
         from .lazy_dataset import LazyDataset
 
-        # 利用 TaskConfig 的 derive 能力将参数平铺进去
-        task_overrides = {
-            "max_workers": max_workers,
-            "rate_limit": rate_limit,
-            "ordered_results": ordered,
-            "ignore_errors": ignore_errors,
-            **runner_kwargs,
-        }
-        # 移除 None 值，避免覆盖默认配置
-        task_overrides = {k: v for k, v in task_overrides.items() if v is not None}
+        with config.switch(self.ctx):
+            final_task_cfg = config.settings.task.derive(**overrides)
 
-        runner = TaskRunner(processor, **task_overrides)
+        runner = TaskRunner(processor, task_cfg=final_task_cfg)
 
         # 载入进度管理器
         cp_manager = None
-        if checkpoint_path:
-            cp_manager = CheckpointManager(checkpoint_path)
+        if final_task_cfg.checkpoint_path:
+            cp_manager = CheckpointManager(final_task_cfg.checkpoint_path)
 
         # 定义结果生成器
         def result_generator():
@@ -131,12 +116,17 @@ class Dataset(Generic[T]):
                 source_data = self.filter(lambda c: not cp_manager.is_processed(c.uid))  # type: ignore
 
             it = runner.run_stream(source_data)
-            if runner_kwargs.get("show_progress", True):
+            if final_task_cfg.show_progress:
                 from tqdm import tqdm
 
+                # 尝试获取总数，对于 LazyDataset 可能是 None
+                total = None
+                try:
+                    total = len(source_data)
+                except:
+                    pass
                 it = tqdm(
-                    it,
-                    total=len(source_data) if hasattr(source_data, "__len__") else None,
+                    it, total=total, desc=f"Running {processor.__class__.__name__}"
                 )
 
             for result in it:
@@ -144,18 +134,17 @@ class Dataset(Generic[T]):
                     if cp_manager:
                         cp_manager.save(result.input.uid)
 
-                    # 可以在这里挂载 metadata，比如处理耗时
+                    # 挂载执行元数据 (如耗时)
                     if hasattr(result.output, "metadata"):
                         result.output.metadata.update(result.metadata)
 
                     yield result.output
                 elif not result.success:
-                    # 如果配置了不忽略错误，TaskRunner 内部其实已经 raise 了
-                    # 但为了双重保险或日志记录，这里可以扩展
-                    if not ignore_errors:
+                    if not final_task_cfg.ignore_errors:
                         raise RuntimeError(f"Task failed: {result.error}")
                     # TODO: 这里未来可以接入 Logger 模块记录失败 ID
 
+        # 返回结果依然继承当前数据集的上下文
         return LazyDataset(result_generator(), ctx=self.ctx)
 
     def save_to(self, sink: DataSink[T]) -> None:
