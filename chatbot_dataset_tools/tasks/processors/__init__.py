@@ -1,4 +1,5 @@
 from .base import BaseProcessor
+from .llm import LLMProcessor
 
-__version__ = "0.7.1"
-__all__ = ["BaseProcessor"]
+__version__ = "0.7.3"
+__all__ = ["BaseProcessor", "LLMProcessor"]
