@@ -4,6 +4,7 @@ from typing import Optional, Iterator, Callable, TypeVar, Generic, TYPE_CHECKING
 from chatbot_dataset_tools.types import Conversation
 from chatbot_dataset_tools.config import ConfigContext, GlobalSettings, config
 from chatbot_dataset_tools.connectors import DataSink, FileSink, HTTPSink
+from chatbot_dataset_tools.tasks.processors import BaseProcessor
 
 T = TypeVar("T", bound=Conversation)
 
@@ -77,6 +78,60 @@ class Dataset(Generic[T]):
         with ThreadPoolExecutor(max_workers=workers) as executor:
             results = list(executor.map(func, items))
         return InMemoryDataset(results, ctx=self.ctx)
+
+    def run_task(
+        self,
+        processor: BaseProcessor,
+        max_workers: Optional[int] = None,
+        rate_limit: Optional[float] = None,
+        ordered: bool = True,
+        ignore_errors: bool = True,
+        **runner_kwargs,
+    ) -> LazyDataset[Conversation]:
+        """
+        并发执行任务的入口。
+
+        Args:
+            processor: 执行逻辑算子
+            max_workers: 并发线程数
+            rate_limit: 每秒请求限制
+            ordered: 是否保持结果顺序 (True: 保持输入顺序; False: 谁快谁先出)
+            ignore_errors: 是否忽略失败的任务 (True: 失败则丢弃; False: 失败抛出异常)
+        """
+        from chatbot_dataset_tools.tasks.runner import TaskRunner
+        from chatbot_dataset_tools.config import TaskConfig
+        from .lazy_dataset import LazyDataset
+
+        # 利用 TaskConfig 的 derive 能力将参数平铺进去
+        task_overrides = {
+            "max_workers": max_workers,
+            "rate_limit": rate_limit,
+            "ordered_results": ordered,
+            "ignore_errors": ignore_errors,
+            **runner_kwargs,
+        }
+        # 移除 None 值，避免覆盖默认配置
+        task_overrides = {k: v for k, v in task_overrides.items() if v is not None}
+
+        runner = TaskRunner(processor, **task_overrides)
+
+        # 定义结果生成器
+        def result_generator():
+            # 这里的 self 本身就是 iterable
+            for result in runner.run_stream(self):
+                if result.success and result.output:
+                    # 可以在这里挂载 metadata，比如处理耗时
+                    if hasattr(result.output, "metadata"):
+                        result.output.metadata.update(result.metadata)
+                    yield result.output
+                elif not result.success:
+                    # 如果配置了不忽略错误，TaskRunner 内部其实已经 raise 了
+                    # 但为了双重保险或日志记录，这里可以扩展
+                    if not ignore_errors:
+                        raise RuntimeError(f"Task failed: {result.error}")
+                    # TODO: 这里未来可以接入 Logger 模块记录失败 ID
+
+        return LazyDataset(result_generator(), ctx=self.ctx)
 
     def save_to(self, sink: DataSink[T]) -> None:
         """底层保存接口：接受任何实现了 DataSink 的对象"""
