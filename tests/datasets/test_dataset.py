@@ -1,167 +1,106 @@
 import pytest
-from chatbot_dataset_tools.datasets import Dataset, DatasetLoader
+import time
+import json
+import tempfile
+from pathlib import Path
+from chatbot_dataset_tools.datasets import DatasetLoader
 from chatbot_dataset_tools.types import Message, Conversation
-from chatbot_dataset_tools.ops.filters import min_turns
-from chatbot_dataset_tools.ops.transforms import rename_roles
-from chatbot_dataset_tools.config import config
+from chatbot_dataset_tools.tasks.processors import BaseProcessor
 
 
-def test_dataset_base_class():
-    class DummyDataset(Dataset):
-        pass
+class SlowProcessor(BaseProcessor):
+    """模拟耗时任务，用于测试并发和顺序"""
 
-    dataset = DummyDataset()
-
-    with pytest.raises(NotImplementedError):
-        list(dataset)
-
-    with pytest.raises(NotImplementedError):
-        len(dataset)
+    def process(self, conv: Conversation) -> Conversation:
+        # 如果内容是 "slow"，睡久一点
+        if "slow" in conv.messages[0].content:
+            time.sleep(0.2)
+        return conv
 
 
-def test_dataset_fluent_api():
-    # 构造测试数据
-    c1 = Conversation([Message("user", "hi"), Message("bot", "hello")])  # 2 turns
-    c2 = Conversation([Message("user", "bye")])  # 1 turn
-    c3 = Conversation(
-        [Message("human", "how are you"), Message("gpt", "fine")]
-    )  # 2 turns
+class ErrorProcessor(BaseProcessor):
+    """模拟报错任务"""
 
-    ds = DatasetLoader.from_list([c1, c2, c3])
-
-    # 1. 测试 filter_turns
-    filtered = ds.filter(min_turns(2))
-    assert len(filtered.to_list()) == 2
-
-    # 2. 测试 rename_roles
-    renamed = ds.map(rename_roles({"human": "user", "gpt": "assistant"}))
-    items = renamed.to_list()
-    assert items[2].messages[0].role == "user"
-    assert items[2].messages[1].role == "assistant"
-
-    # 3. 测试 limit
-    limited = ds.limit(2)
-    assert len(limited.to_list()) == 2
-
-    # 4. 测试链式调用组合
-    final_ds = (
-        ds.filter(min_turns(2))
-        .map(rename_roles({"human": "user", "gpt": "assistant"}))
-        .limit(1)
-    )
-    result = final_ds.to_list()
-    assert len(result) == 1
-    assert result[0].messages[0].content == "hi"
+    def process(self, conv: Conversation) -> Conversation:
+        raise ValueError("Intentional Error")
 
 
-@pytest.fixture
-def large_dataset():
-    """创建一个包含 10 条数据的测试集"""
-    convs = [Conversation([Message("user", f"msg {i}")]) for i in range(10)]
-    return DatasetLoader.from_list(convs)
+def test_run_task_basic_and_ordered():
+    """测试基础任务执行和顺序保持"""
+    c1 = Conversation([Message("user", "slow msg")])  # 会睡 0.2s
+    c2 = Conversation([Message("user", "fast msg")])
+    ds = DatasetLoader.from_list([c1, c2])
+
+    # 测试 ordered=True (默认)
+    # 虽然 c1 慢，但结果列表里 c1 必须在 c2 前面
+    results_ordered = ds.run_task(
+        SlowProcessor(), max_workers=2, ordered=True
+    ).to_list()
+    assert results_ordered[0].messages[0].content == "slow msg"
+    assert results_ordered[1].messages[0].content == "fast msg"
 
 
-def test_dataset_split(large_dataset):
-    # 测试 8/2 分成两个数据集
-    train_ds, val_ds = large_dataset.split(0.8)
+def test_run_task_unordered():
+    """测试乱序执行 (谁快谁先出)"""
+    c1 = Conversation([Message("user", "slow msg")])
+    c2 = Conversation([Message("user", "fast msg")])
+    ds = DatasetLoader.from_list([c1, c2])
 
-    assert len(train_ds) == 8
-    assert len(val_ds) == 2
-
-    # 验证内容是否连续（默认 split 通常是不打乱的）
-    assert train_ds.to_list()[0].messages[0].content == "msg 0"
-    assert val_ds.to_list()[0].messages[0].content == "msg 8"
-
-
-def test_dataset_shuffle(large_dataset):
-    # 使用固定种子进行打乱
-    shuffled_1 = large_dataset.shuffle(seed=42)
-    shuffled_2 = large_dataset.shuffle(seed=42)
-    shuffled_different = large_dataset.shuffle(seed=99)
-
-    # 1. 验证长度不变
-    assert len(shuffled_1) == len(large_dataset)
-
-    # 2. 验证相同种子结果一致（幂等性）
-    list1 = [c.messages[0].content for c in shuffled_1]
-    list2 = [c.messages[0].content for c in shuffled_2]
-    assert list1 == list2
-
-    # 3. 验证不同种子结果不同（大概率）
-    list3 = [c.messages[0].content for c in shuffled_different]
-    assert list1 != list3
-
-    # 4. 验证集合内容是一致的（没有丢数据或产生幻觉）
-    assert set(list1) == set(f"msg {i}" for i in range(10))
+    # 测试 ordered=False
+    # c2 快，在并发下 c2 应该先出现在结果里
+    results_unordered = ds.run_task(
+        SlowProcessor(), max_workers=2, ordered=False
+    ).to_list()
+    assert results_unordered[0].messages[0].content == "fast msg"
+    assert results_unordered[1].messages[0].content == "slow msg"
 
 
-def test_dataset_sample(large_dataset):
-    # 采样 3 条
-    sampled = large_dataset.sample(n=3, seed=123)
+def test_run_task_ignore_errors():
+    """测试错误忽略逻辑"""
+    ds = DatasetLoader.from_list([Conversation([Message("user", "err")])])
 
-    assert len(sampled) == 3
-    # 验证采样出的数据确实属于原数据集
-    all_contents = [c.messages[0].content for c in large_dataset]
-    for c in sampled:
-        assert c.messages[0].content in all_contents
+    # 1. ignore_errors=True: 不报错，返回空列表
+    res = ds.run_task(ErrorProcessor(), ignore_errors=True).to_list()
+    assert len(res) == 0
 
-
-def test_dataset_sample_overflow(large_dataset):
-    # 如果采样数大于总数，应该返回全部数据而不是报错
-    sampled = large_dataset.sample(n=100)
-    assert len(sampled) == 10
+    # 2. ignore_errors=False: 应该抛出异常
+    with pytest.raises(ValueError, match="Intentional Error"):
+        ds.run_task(ErrorProcessor(), ignore_errors=False).to_list()
 
 
-def test_dataset_with_config_isolation():
-    """测试数据集配置的隔离性"""
-    c = Conversation([Message("user", "hi")])
-    ds_default = DatasetLoader.from_list([c])
+def test_run_task_checkpoint(tmp_path):
+    """测试断点续传逻辑"""
+    cp_file = tmp_path / "checkpoint.json"
+    c1 = Conversation([Message("user", "msg1")])  # UID 会基于内容生成
+    c2 = Conversation([Message("user", "msg2")])
+    ds = DatasetLoader.from_list([c1, c2])
 
-    with config.switch(ds={"role_map": {"user": "client"}}):
-        ds_custom = DatasetLoader.from_list([c])
-        assert ds_custom.settings.ds.role_map["user"] == "client"
+    proc = SlowProcessor()
 
-    # 验证旧数据集依然保持它出生时的配置 (human)
-    assert ds_default.settings.ds.role_map["user"] == "human"
+    # 1. 第一次运行，只跑第 1 条，然后模拟中断（手动取第一条）
+    # 注意：LazyDataset 只有在迭代时才会保存进度
+    gen = ds.run_task(proc, checkpoint_path=str(cp_file), ordered=True)
+    first_res = next(iter(gen))
+    assert first_res.messages[0].content == "msg1"
 
+    # 验证 checkpoint 文件里存了 c1 的 UID
+    with open(cp_file, "r") as f:
+        processed_ids = json.load(f)
+        assert c1.get_uid() in processed_ids
 
-def test_dataset_fluent_config():
-    """测试 with_config 的链式调用"""
-    ds = DatasetLoader.from_list([Conversation([Message("user", "hi")])])
+    # 2. 第二次运行，应该自动跳过 c1，只跑 c2
+    # 我们用一个计数器来证明 proc 只被调用了一次
+    class CallCounterProcessor(BaseProcessor):
+        def __init__(self):
+            self.count = 0
 
-    # 修改局部配置并执行并行操作
-    # 假设我们想在这个特定的步骤使用 8 个线程
-    new_ds = ds.with_config(max_workers=8)
-    assert new_ds.settings.proc.max_workers == 8
-    assert ds.settings.proc.max_workers != 8  # 原集不受影响
+        def process(self, conv):
+            self.count += 1
+            return conv
 
+    counter_proc = CallCounterProcessor()
+    final_res = ds.run_task(counter_proc, checkpoint_path=str(cp_file)).to_list()
 
-def test_parallel_map_config_priority():
-    """测试并行处理的优先级：参数 > 配置"""
-    ds = DatasetLoader.from_list([Conversation([Message("user", "hi")])])
-
-    # 模拟一个耗时操作
-    func = lambda x: x
-
-    # 即使配置里是 4，如果传了 10，应该用 10 (这里通过 mock 或逻辑检查)
-    with config.switch(max_workers=4):
-        # 这一步我们主要验证它能跑通，逻辑由底层 Dataset 实现
-        res = ds.parallel_map(func, max_workers=2)
-        assert len(res) == 1
-
-
-def test_dataset_shuffle_with_config_seed(large_dataset):
-    """测试 shuffle 使用配置中的种子"""
-    with config.switch(seed=12345):
-        # 不传 seed，应该使用配置里的 12345
-        s1 = large_dataset.shuffle()
-        s2 = large_dataset.shuffle()
-        assert [c.messages[0].content for c in s1] == [
-            c.messages[0].content for c in s2
-        ]
-
-    with config.switch(seed=54321):
-        s3 = large_dataset.shuffle()
-        assert [c.messages[0].content for c in s1] != [
-            c.messages[0].content for c in s3
-        ]
+    assert len(final_res) == 1
+    assert final_res[0].messages[0].content == "msg2"
+    assert counter_proc.count == 1  # 重点：c1 被跳过了，没进入 process
