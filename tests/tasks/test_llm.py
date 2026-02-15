@@ -49,5 +49,14 @@ def test_dataset_run_llm_task():
 
     # 验证请求是否正确
     assert respx.calls.call_count == 2
-    last_req = json.loads(respx.calls.last.request.content)
-    assert last_req["messages"][1]["content"] == "Input: raw input 2"
+
+    # 获取所有捕获到的请求内容
+    actual_prompts = []
+    for call in respx.calls:
+        payload = json.loads(call.request.content)
+        # 提取 prompt 内容
+        actual_prompts.append(payload["messages"][1]["content"])
+
+    # 使用 set 进行无序对比，或者 sort 后对比
+    expected_prompts = {"Input: raw input 1", "Input: raw input 2"}
+    assert set(actual_prompts) == expected_prompts
