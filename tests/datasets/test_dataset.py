@@ -1,11 +1,11 @@
 import pytest
 import time
-import json
 from unittest.mock import patch
 from chatbot_dataset_tools.datasets import DatasetLoader
 from chatbot_dataset_tools.types import Message, Conversation
 from chatbot_dataset_tools.tasks.processors import BaseProcessor
 from chatbot_dataset_tools.config import config
+from chatbot_dataset_tools.tasks import CheckpointManager
 
 # --- 准备工作：定义测试用的 Processor ---
 
@@ -77,34 +77,29 @@ def test_run_task_ignore_errors():
 
 def test_run_task_checkpoint(tmp_path):
     """测试断点续传逻辑"""
-    cp_file = tmp_path / "checkpoint.json"
+    cp_file = tmp_path / "checkpoint.txt"
     c1 = Conversation([Message("user", "msg1")])
-    c2 = Conversation([Message("user", "msg2")])
-    ds = DatasetLoader.from_list([c1, c2])
+    ds = DatasetLoader.from_list([c1])
 
-    # 1. 运行并生成 checkpoint
-    # 模拟只处理了第一个就退出的情况
-    gen = ds.run_task(SlowProcessor(), checkpoint_path=str(cp_file))
+    # 1. 运行任务
+    # 设置 interval=1 确保立即写入，方便测试观察
+    gen = ds.run_task(
+        SlowProcessor(), checkpoint_path=str(cp_file), checkpoint_interval=1
+    )
     next(iter(gen))
 
-    # 验证文件生成
+    # 2. 验证写入方式：现在是纯文本，每行一个 ID
     assert cp_file.exists()
+    content = cp_file.read_text().strip()
+    assert content == c1.get_uid()
 
-    # 2. 第二次运行，计数器验证
-    class CounterProc(BaseProcessor):
-        def __init__(self):
-            self.count = 0
+    # 3. 验证追加性能 (手动模拟旧数据)
+    with open(cp_file, "a") as f:
+        f.write("old_id_123\n")
 
-        def process(self, conv):
-            self.count += 1
-            return conv
-
-    proc = CounterProc()
-    # 重新运行，传入相同的 checkpoint_path
-    ds.run_task(proc, checkpoint_path=str(cp_file)).to_list()
-
-    # msg1 被跳过，只处理了 msg2
-    assert proc.count == 1
+    manager = CheckpointManager(str(cp_file))
+    assert manager.is_processed("old_id_123")
+    assert manager.is_processed(c1.get_uid())
 
 
 # --- 配置集成测试 (Integration Tests with Config) ---
