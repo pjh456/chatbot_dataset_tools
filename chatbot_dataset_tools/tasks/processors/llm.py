@@ -4,8 +4,10 @@ from .base import BaseProcessor
 from chatbot_dataset_tools.types import Conversation, Message
 from chatbot_dataset_tools.formatters.base import FieldMapper
 from chatbot_dataset_tools.config import config, APIConfig
+from chatbot_dataset_tools.registry import register_processor
 
 
+@register_processor("llm")
 class LLMProcessor(BaseProcessor):
     def __init__(
         self,
