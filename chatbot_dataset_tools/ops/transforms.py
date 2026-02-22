@@ -1,8 +1,10 @@
 from typing import Callable, Mapping, Optional
 from chatbot_dataset_tools.types import Conversation
 from chatbot_dataset_tools.config import config
+from chatbot_dataset_tools.registry import register_transform
 
 
+@register_transform()
 def rename_roles(
     mapping: Optional[Mapping[str, str]] = None,
 ) -> Callable[[Conversation], Conversation]:
@@ -19,6 +21,7 @@ def rename_roles(
     return _transform
 
 
+@register_transform("strip_content")
 def strip_content() -> Callable[[Conversation], Conversation]:
     """去除所有消息首尾空白"""
 
@@ -30,6 +33,7 @@ def strip_content() -> Callable[[Conversation], Conversation]:
     return _transform
 
 
+@register_transform()
 def merge_consecutive_roles(
     sep: Optional[str] = None,
 ) -> Callable[[Conversation], Conversation]:
@@ -58,6 +62,7 @@ def merge_consecutive_roles(
     return _transform
 
 
+@register_transform()
 def limit_context(max_messages: int) -> Callable[[Conversation], Conversation]:
     """限制对话历史长度，只保留最后的 N 条消息"""
 
@@ -74,6 +79,7 @@ def limit_context(max_messages: int) -> Callable[[Conversation], Conversation]:
     return _transform
 
 
+@register_transform()
 def remove_system_message(
     role: Optional[str] = None,
 ) -> Callable[[Conversation], Conversation]:
