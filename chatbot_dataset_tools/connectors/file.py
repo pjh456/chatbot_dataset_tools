@@ -5,8 +5,10 @@ from .base import T, DataSource, DataSink
 from .traits import FromDictType, ToDictType
 from chatbot_dataset_tools.types import Conversation
 from chatbot_dataset_tools.config import FileConfig, config
+from chatbot_dataset_tools.registry import register_source, register_sink
 
 
+@register_source()
 class FileSource(DataSource[T]):
     def __init__(
         self,
@@ -54,6 +56,7 @@ class FileSource(DataSource[T]):
                     yield self.conv_type.from_dict(conv)
 
 
+@register_sink()
 class FileSink(DataSink[T]):
     def __init__(self, file_cfg: Optional[FileConfig] = None, **overrides) -> None:
         base_cfg = config.current.settings.file

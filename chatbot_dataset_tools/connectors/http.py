@@ -15,8 +15,10 @@ from .base import T, DataSource, DataSink
 from .traits import FromDictType, ToDictType
 from chatbot_dataset_tools.types import Conversation
 from chatbot_dataset_tools.config import HTTPConfig, config
+from chatbot_dataset_tools.registry import register_source, register_sink
 
 
+@register_source()
 class HTTPSource(DataSource[T]):
     def __init__(
         self,
@@ -68,6 +70,9 @@ class HTTPSource(DataSource[T]):
 
             for item in raw_data:
                 yield self.conv_type.from_dict(item)
+
+
+register_source()
 
 
 class HTTPSink(DataSink[T]):
