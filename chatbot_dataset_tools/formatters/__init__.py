@@ -3,7 +3,7 @@ from .sharegpt import ShareGPTFormatter
 from .alpaca import AlpacaFormatter
 from .openai import OpenAIFormatter
 
-__version__ = "0.5.1"
+__version__ = "0.8.0"
 __all__ = [
     "FieldMapper",
     "Formatter",

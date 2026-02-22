@@ -1,8 +1,10 @@
 from typing import Any, Dict, Optional, Mapping
 from .base import BaseFormatter
 from chatbot_dataset_tools.types import Message, Conversation
+from chatbot_dataset_tools.registry import register_formatter
 
 
+@register_formatter()
 class ShareGPTFormatter(BaseFormatter):
     """
     {
