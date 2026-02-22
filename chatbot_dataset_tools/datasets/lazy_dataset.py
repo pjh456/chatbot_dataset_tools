@@ -35,7 +35,7 @@ class LazyDataset(Dataset[T]):
     def with_config(self, **changes) -> LazyDataset[T]:
         return LazyDataset(self._loader, self._ops, ctx=self.ctx.clone(**changes))
 
-    def __len__(self):
+    def __len__(self) -> int:
         raise TypeError("LazyDataset has unknown length; convert to list first")
 
     def map(self, func: Callable[[T], T]) -> LazyDataset[T]:
