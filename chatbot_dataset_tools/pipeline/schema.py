@@ -3,6 +3,9 @@ from typing import Any, Dict, List, Optional
 import json
 import os
 import re
+from chatbot_dataset_tools.utils import get_logger
+
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -26,8 +29,16 @@ class PipelineConfig:
 
     @classmethod
     def from_file(cls, path: str) -> "PipelineConfig":
-        with open(path, "r", encoding="utf-8") as f:
-            raw_data = json.load(f)
+        logger.info(f"Loading Pipeline config from: {path}")
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                raw_data = json.load(f)
+        except FileNotFoundError:
+            logger.critical(f"Pipeline config file not found: {path}")
+            raise
+        except json.JSONDecodeError as e:
+            logger.critical(f"Invalid JSON in pipeline config: {e}")
+            raise
 
         # 1. 预处理：变量替换
         # 优先使用 JSON 里定义的 variables，其次使用 环境变量
@@ -36,7 +47,14 @@ class PipelineConfig:
         # 合并变量池：JSON 内部变量优先级 > 环境变量
         context_vars = {**env_vars, **defined_vars}
 
+        # 打印可用的变量键（不打印值，防止泄露密钥）
+        logger.debug(f"Available context variables: {list(context_vars.keys())}")
+
         resolved_data = cls._inject_variables(raw_data, context_vars)
+
+        step_count = len(resolved_data.get("steps", []))
+        logger.info(f"Config loaded. Found {step_count} steps.")
+
         return cls.from_dict(resolved_data)
 
     @classmethod
@@ -65,9 +83,21 @@ class PipelineConfig:
             # 查找 ${VAR} 模式
             def replacer(match):
                 key = match.group(1)
-                return str(vars_map.get(key, match.group(0)))  # 找不到则保持原样
+                val = vars_map.get(key)
 
-            return re.sub(r"\$\{(.*?)\}", replacer, data)
+                # 变量未找到时给出警告
+                if val is None:
+                    logger.warning(
+                        f"Variable '${{{key}}}' not found in context! Keeping original string."
+                    )
+                    return match.group(0)
+
+                # TODO: 记录替换（仅在 DEBUG 模式，且尽量模糊处理值）
+
+                return str(val)
+
+            new_str = re.sub(r"\$\{(.*?)\}", replacer, data)
+            return new_str
 
         elif isinstance(data, dict):
             return {
