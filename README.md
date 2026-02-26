@@ -33,6 +33,17 @@ chatbot_dataset_tools/
 
 ## 🚀 快速开始
 
+### 0. 安装项目
+
+```bash
+# 克隆仓库
+git clone https://github.com/pjh456/chatbot_dataset_tools.git
+cd chatbot_dataset_tools
+
+# 开发者模式安装
+pip install -e .
+```
+
 ### 1. 声明式处理 (推荐)
 创建一个 `pipeline.json`，配置你的处理流：
 
