@@ -150,12 +150,12 @@ def test_pipeline_with_concat_files(tmp_path):
                 "params": {
                     "inputs": [
                         {
-                            "source_type": "FileSource",
+                            "source_type": "file",
                             "path": str(f1),
                             "format": "jsonl",
                         },
                         {
-                            "source_type": "FileSource",
+                            "source_type": "file",
                             "path": str(f2),
                             "format": "jsonl",
                         },
@@ -165,7 +165,7 @@ def test_pipeline_with_concat_files(tmp_path):
             {
                 "type": "saver",
                 "params": {
-                    "sink_type": "FileSink",
+                    "sink_type": "file",
                     "path": str(out),
                     "format": "jsonl",
                 },
