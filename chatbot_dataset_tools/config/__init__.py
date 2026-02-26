@@ -12,7 +12,7 @@ from .manager import ConfigManager
 
 config = ConfigManager()
 
-__version__ = "0.7.6"
+__version__ = "0.8.5"
 __all__ = [
     "config",
     "BaseConfig",

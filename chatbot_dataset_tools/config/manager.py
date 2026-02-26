@@ -3,6 +3,9 @@ from typing import Dict, Optional
 from contextlib import contextmanager
 from .schema import GlobalSettings
 from .context import ConfigContext
+from chatbot_dataset_tools.utils import get_logger
+
+logger = get_logger(__name__)
 
 # 定义一个模块级的初始配置，作为所有线程的保底值
 _ROOT_SETTINGS = GlobalSettings()
@@ -61,17 +64,29 @@ class ConfigManager:
                 self.get_context(identifier) if identifier else self.current
             ) or self.current
 
+        previous_ctx = self.current
+
         if temporary_changes:
             # 临时产生一个新的匿名上下文
             target_ctx = base_ctx.clone(name="_temp", **temporary_changes)
+            logger.debug(
+                f"Config Switch: {previous_ctx.name} -> {target_ctx.name} (Temp override)"
+            )
         else:
             target_ctx = base_ctx
+            if previous_ctx.uid != target_ctx.uid:
+                logger.debug(f"Config Switch: {previous_ctx.name} -> {target_ctx.name}")
 
         token = self._active_cv.set(target_ctx)
         try:
             yield target_ctx
         finally:
             self._active_cv.reset(token)
+            # 只有当切回去的时候才记录，且只有真切走了才记录
+            if previous_ctx.uid != target_ctx.uid:
+                logger.debug(
+                    f"Config Restore: {target_ctx.name} -> {previous_ctx.name}"
+                )
 
     def set_global_default(self, identifier: str):
         """永久切换全局默认配置"""
