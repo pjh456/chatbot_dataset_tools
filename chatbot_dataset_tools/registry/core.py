@@ -1,4 +1,7 @@
 from typing import Callable, Dict, Optional, List, TypeVar, Generic
+from chatbot_dataset_tools.utils import get_logger
+
+logger = get_logger(__name__)
 
 T = TypeVar("T")
 
@@ -36,8 +39,11 @@ class Registry(Generic[T]):
 
             # 检查重复
             if obj_name in self._registry:
-                # TODO: 使用 logger.warning
-                pass
+                logger.warning(
+                    f"Overwriting existing registry key '{obj_name}' in {self._name}"
+                )
+            else:
+                logger.debug(f"®Registered {obj_name} in {self._name}")
 
             self._registry[obj_name] = obj
             return obj
