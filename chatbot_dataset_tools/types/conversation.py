@@ -13,6 +13,9 @@ from typing import (
 from dataclasses import dataclass, asdict, field
 from .message import Message
 from .message_list import MessageList
+from chatbot_dataset_tools.utils import get_logger
+
+logger = get_logger(__name__)
 
 if TYPE_CHECKING:
     from .lazy_message_view import LazyMessageView
@@ -54,6 +57,8 @@ class Conversation:
         explicit_id = self.metadata.get("id") or self.metadata.get("uid")
         if explicit_id:
             self._cached_uid = str(explicit_id)
+
+            logger.debug(f"Using explicit metadata ID: {self._cached_uid}")
             return self._cached_uid
 
         # 2. 根据内容生成确定性哈希
@@ -67,6 +72,8 @@ class Conversation:
         sha256_hash = hashlib.sha256(fingerprint).hexdigest()
 
         self._cached_uid = sha256_hash
+        logger.debug(f"Generated Content Hash UID: {self._cached_uid}")
+
         return self._cached_uid
 
     def view(self) -> LazyMessageView:
