@@ -6,8 +6,9 @@ from . import ops
 from . import formatters
 from . import tasks
 from . import registry
+from . import utils
 
-__version__ = "0.8.1"
+__version__ = "0.8.2"
 __all__ = [
     "types",
     "config",
@@ -17,4 +18,5 @@ __all__ = [
     "formatters",
     "tasks",
     "registry",
+    "utils",
 ]

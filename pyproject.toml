@@ -4,10 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "chatbot-dataset-tools"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
     "pytest",
-    "respx"
+    "respx",
+    "importlib",
 ]
 
 [tool.setuptools.packages.find]
