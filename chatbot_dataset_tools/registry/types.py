@@ -18,7 +18,7 @@ register_filter = filters.register
 
 # 用于 TaskRunner 的重型处理器 (Classes)
 # JSON 示例: { "type": "task", "processor": "LLMProcessor", ... }
-processors = Registry[Type]("processors")
+processors = Registry[Type]("processors", suffix_hint="Processor")
 register_processor = processors.register
 
 
@@ -28,15 +28,15 @@ register_processor = processors.register
 
 # 数据格式化器 (Classes: Formatter)
 # JSON 示例: { "type": "loader", "format": "alpaca", ... }
-formatters = Registry[Type]("formatters")
+formatters = Registry[Type]("formatters", suffix_hint="Formatter")
 register_formatter = formatters.register
 
 # 数据源 (Classes: DataSource)
 # JSON 示例: { "source_type": "file", ... }
-sources = Registry[Type]("sources")
+sources = Registry[Type]("sources", suffix_hint="Source")
 register_source = sources.register
 
 # 数据汇 (Classes: DataSink)
 # JSON 示例: { "sink_type": "http", ... }
-sinks = Registry[Type]("sinks")
+sinks = Registry[Type]("sinks", suffix_hint="Sink")
 register_sink = sinks.register

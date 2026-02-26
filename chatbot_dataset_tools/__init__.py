@@ -9,7 +9,7 @@ from . import registry
 from . import pipeline
 from . import utils
 
-__version__ = "0.8.3"
+__version__ = "0.8.4"
 __all__ = [
     "types",
     "config",
