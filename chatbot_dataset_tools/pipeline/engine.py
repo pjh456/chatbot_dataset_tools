@@ -1,16 +1,7 @@
-import logging
+import time
+
 from typing import Optional
-
-# 导入所有组件以触发注册 (Registry)
-# 在实际项目中，可以使用 importlib 动态扫描
-import chatbot_dataset_tools.ops.filters
-import chatbot_dataset_tools.ops.transforms
-import chatbot_dataset_tools.tasks.processors.llm
-import chatbot_dataset_tools.connectors.file
-import chatbot_dataset_tools.connectors.http
-
-# 导入 formatters 等...
-
+from .schema import PipelineConfig, StepConfig
 from chatbot_dataset_tools.config import config
 from chatbot_dataset_tools.datasets import DatasetLoader, ConcatDataset, Dataset
 from chatbot_dataset_tools.registry import (
@@ -20,14 +11,13 @@ from chatbot_dataset_tools.registry import (
     sources,
     sinks,
 )
-from .schema import PipelineConfig, StepConfig
-
 from chatbot_dataset_tools.utils import (
     autodiscover_internal_components,
     import_module_from_string,
+    get_logger,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class PipelineEngine:
@@ -56,38 +46,70 @@ class PipelineEngine:
                 # 如果是 .py 文件路径，甚至可以使用 importlib.util.spec_from_file_location 加载
                 # 这里暂且假设用户传的是 Python 模块路径 (importable path)
                 import_module_from_string(plugin)
-                print(f"🔌 Loaded plugin: {plugin}")
+                logger.info(f"Loaded plugin: {plugin}")
             except Exception as e:
-                print(f"❌ Failed to load plugin '{plugin}': {e}")
+                logger.error(f"Failed to load plugin '{plugin}': {e}")
 
     def run(self):
-        logger.info(f"🚀 Starting Pipeline: {self.cfg.name}")
+        logger.info(f"Starting Pipeline: {self.cfg.name}")
+
+        if self.cfg.description:
+            logger.info(f"Description: {self.cfg.description}")
+
+        if self.cfg.variables:
+            safe_vars = {
+                k: (v if "key" not in k.lower() else "******")  # 保护密钥
+                for k, v in self.cfg.variables.items()
+            }
+            logger.debug(f"Injected Variables: {safe_vars}")
 
         # === 核心逻辑：上下文融合 ===
         # 使用 config.switch 将 Pipeline JSON 中的 settings 应用到当前运行环境
         # 例如 JSON 中写了 "settings": { "proc": { "max_workers": 16 } }
         # 这里会自动生效，后续的 map/task 都会读到这个 16
         with config.switch(temporary_changes=self.cfg.settings):
+            if self.cfg.settings:
+                logger.info(
+                    f"Applied temporary settings override: {list(self.cfg.settings.keys())}"
+                )
+
+            total_start = time.time()
+
             step = None
             try:
-                for step in self.cfg.steps:
+                for i, step in enumerate(self.cfg.steps):
+                    step_start = time.time()
+                    logger.info(
+                        f"[Step {i+1}/{len(self.cfg.steps)}] Executing '{step.name}' ({step.type})"
+                    )
+
                     self._execute_step(step)
+
+                    elapsed = time.time() - step_start
+                    logger.info(f"Step '{step.name}' completed in {elapsed:.2f}s")
+
             except Exception as e:
                 logger.error(
-                    f"❌ Pipeline failed at step '{step.name if step else step}': {str(e)}"
+                    f"Pipeline failed at step '{step.name if step else step}': {str(e)}",
+                    exc_info=True,
                 )
                 raise e
 
-        logger.info("✅ Pipeline Finished Successfully.")
+        total_elapsed = time.time() - total_start
+        logger.info(f"Pipeline Finished Successfully in {total_elapsed:.2f}s.")
 
     def _execute_step(self, step: StepConfig):
-        logger.info(f"Running step [{step.name}] Type: {step.type}")
+        debug_params = {
+            k: v for k, v in step.params.items() if k not in ["inputs", "mapping"]
+        }
+        logger.debug(f"   Params: {debug_params}")
 
         # 动态分发
         handler_name = f"_handle_{step.type}"
         handler = getattr(self, handler_name, None)
 
         if not handler:
+            logger.error(f"Unknown step type: {step.type}")
             raise NotImplementedError(f"Step type '{step.type}' is not supported.")
 
         handler(step)
