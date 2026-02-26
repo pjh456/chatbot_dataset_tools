@@ -2,6 +2,9 @@ from typing import Any, Dict, Optional, Mapping
 from .base import BaseFormatter
 from chatbot_dataset_tools.types import Message, Conversation
 from chatbot_dataset_tools.registry import register_formatter
+from chatbot_dataset_tools.utils import get_logger
+
+logger = get_logger(__name__)
 
 
 @register_formatter()

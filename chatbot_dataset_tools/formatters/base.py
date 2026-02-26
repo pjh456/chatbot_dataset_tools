@@ -2,6 +2,9 @@ import re
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional, Protocol, runtime_checkable
 from chatbot_dataset_tools.types import Conversation
+from chatbot_dataset_tools.utils import get_logger
+
+logger = get_logger(__name__)
 
 
 @runtime_checkable
@@ -22,9 +25,19 @@ class FieldMapper:
     def inject(template: str, variables: Dict[str, Any]) -> str:
         """将 ${var} 替换为实际值"""
 
+        if "${" in template:
+            logger.debug(f"Injecting variables into template: '{template}'")
+
         def replacer(match):
             key = match.group(1)
-            return str(variables.get(key, match.group(0)))
+            val = variables.get(key)
+            if val is None:
+                # Prompt 里的变量如果缺了，可能导致 LLM 表现极差
+                logger.warning(
+                    f"Prompt template variable '${{{key}}}' missing! Using original literal."
+                )
+                return match.group(0)
+            return str(val)
 
         return re.sub(r"\$\{(.*?)\}", replacer, template)
 
