@@ -6,6 +6,9 @@ from .processors import BaseProcessor
 from .limiter import TokenBucketLimiter
 from chatbot_dataset_tools.types import Conversation
 from chatbot_dataset_tools.config import config, TaskConfig
+from chatbot_dataset_tools.utils import get_logger
+
+logger = get_logger(__name__)
 
 
 class TaskRunner:
@@ -13,7 +16,7 @@ class TaskRunner:
         self,
         processor: BaseProcessor,
         task_cfg: Optional[TaskConfig] = None,
-        **overrides  # 允许直接传 max_workers 等
+        **overrides,  # 允许直接传 max_workers 等
     ):
         # 1. 配置合并逻辑
         global_task_cfg = config.settings.task
@@ -38,13 +41,24 @@ class TaskRunner:
                 success=True, input=conv, output=out, metadata={"duration": duration}
             )
         except Exception as e:
-            # 错误处理
-            if not self.cfg.ignore_errors:
+            error_msg = str(e)
+            if self.cfg.ignore_errors:
+                # 如果忽略错误，使用 Warning，并打印堆栈方便调试
+                logger.warning(
+                    f"Task failed for UID={conv.uid} (Ignored): {error_msg}",
+                    exc_info=True,
+                )
+            else:
+                # 如果不忽略，使用 Error
+                logger.error(f"Task failed for UID={conv.uid}: {error_msg}")
                 raise e
+
             return TaskResult(success=False, input=conv, error=str(e))
 
     def run_stream(self, data: Iterable[Conversation]) -> Iterator[TaskResult]:
         """根据配置决定是顺序返回还是乱序返回"""
+
+        logger.info(f"Starting TaskRunner with {self.cfg.max_workers} workers.")
 
         # 必须把 iterable 转为 iterator，防止多次消费
         # 注意：如果是 LazyDataset，这里不会立即加载所有数据，依然是流式的

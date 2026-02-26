@@ -5,6 +5,9 @@ from chatbot_dataset_tools.types import Conversation, Message
 from chatbot_dataset_tools.formatters.base import FieldMapper
 from chatbot_dataset_tools.config import config, APIConfig
 from chatbot_dataset_tools.registry import register_processor
+from chatbot_dataset_tools.utils import get_logger
+
+logger = get_logger(__name__)
 
 
 @register_processor("llm")
@@ -68,6 +71,10 @@ class LLMProcessor(BaseProcessor):
 
         payload = self._build_payload(conv)
 
+        logger.debug(
+            f"sending request to {self.model}. Prompt len: {len(str(payload['messages']))}"
+        )
+
         try:
             with httpx.Client(timeout=60) as client:
                 resp = client.post(
@@ -90,8 +97,20 @@ class LLMProcessor(BaseProcessor):
                 new_meta = conv.metadata.copy()
                 new_meta.update({"usage": usage})
 
+                # 记录 Token 消耗到日志
+                total_tokens = usage.get("total_tokens", 0)
+                logger.debug(
+                    f"Usage: {total_tokens} tokens (in={usage.get('prompt_tokens')}, out={usage.get('completion_tokens')})"
+                )
+
                 return Conversation(new_msgs, meta=new_meta)
 
+        except httpx.HTTPStatusError as e:
+            logger.error(
+                f"OpenAI API Status Error: {e.response.status_code} - {e.response.text}"
+            )
+            raise RuntimeError(f"API HTTP Error: {e}")
         except Exception as e:
             # TaskRunner 会捕获这个异常并根据 ignore_errors 处理
-            raise RuntimeError(f"API Call Failed: {str(e)}")
+            logger.error(f"OpenAI API Call Failed: {str(e)}")
+            raise RuntimeError(f"API Unknown Error: {str(e)}")

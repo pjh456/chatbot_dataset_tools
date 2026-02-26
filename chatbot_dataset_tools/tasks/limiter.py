@@ -1,5 +1,8 @@
 import time
 import threading
+from chatbot_dataset_tools.utils import get_logger
+
+logger = get_logger(__name__)
 
 
 class TokenBucketLimiter:
@@ -47,4 +50,7 @@ class TokenBucketLimiter:
 
         # 3. 在锁外睡眠 (真正的并发关键)
         if wait_time > 0:
+            # 只有当等待时间明显时才记录 DEBUG
+            if wait_time > 0.1:
+                logger.debug(f"Rate limit: sleeping for {wait_time:.2f}s")
             time.sleep(wait_time)
