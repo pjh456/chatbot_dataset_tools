@@ -2,11 +2,15 @@ from __future__ import annotations
 from typing import Optional, Iterable, Callable, Iterator
 from .dataset import Dataset, T
 from chatbot_dataset_tools.config import ConfigContext, config
+from chatbot_dataset_tools.utils import get_logger
+
+logger = get_logger(__name__)
 
 
 class InMemoryDataset(Dataset[T]):
     """
     一次性加载到内存的数据集。
+    map/filter 会立即执行并返回新的 InMemoryDataset。
 
     对于变换方法，为方便外部非侵入式配置过程，
     在变换过程中使用的是外部的最新上下文配置。
@@ -33,11 +37,20 @@ class InMemoryDataset(Dataset[T]):
         return len(self._data)
 
     def map(self, func: Callable[[T], T]) -> InMemoryDataset[T]:
+        func_name = getattr(func, "__name__", str(func))
+        logger.info(f"[InMemory] Executing MAP: {func_name} on {len(self)} items")
+
         with config.switch(self.ctx):
             new_data = [func(item) for item in self._data]
+
         return InMemoryDataset(new_data, ctx=self.ctx)
 
     def filter(self, func: Callable[[T], bool]) -> InMemoryDataset[T]:
+        func_name = getattr(func, "__name__", str(func))
+        logger.info(f"[InMemory] Executing FILTER: {func_name} on {len(self)} items")
+
         with config.switch(self.ctx):
             new_data = [item for item in self._data if func(item)]
+
+        logger.info(f"   -> Filtered result: {len(new_data)} items remaining")
         return InMemoryDataset(new_data, ctx=self.ctx)

@@ -1,4 +1,5 @@
 from __future__ import annotations
+import time
 from pathlib import Path
 from typing import Optional, Iterator, Callable, TypeVar, Generic, TYPE_CHECKING
 from chatbot_dataset_tools.types import Conversation
@@ -6,6 +7,9 @@ from chatbot_dataset_tools.config import ConfigContext, GlobalSettings, config
 from chatbot_dataset_tools.connectors import DataSink, FileSink, HTTPSink
 from chatbot_dataset_tools.tasks.processors import BaseProcessor
 from chatbot_dataset_tools.tasks import CheckpointManager
+from chatbot_dataset_tools.utils import get_logger
+
+logger = get_logger(__name__)
 
 T = TypeVar("T", bound=Conversation)
 
@@ -62,6 +66,7 @@ class Dataset(Generic[T]):
         raise NotImplementedError
 
     def map(self, func: Callable[[T], T]) -> Dataset[T]:
+        """对每条数据应用变换。"""
         raise NotImplementedError
 
     def parallel_map(
@@ -74,10 +79,17 @@ class Dataset(Generic[T]):
         # 优先级：参数 > 全局配置（proc.max_workers）
         workers = max_workers or config.settings.proc.max_workers
 
+        logger.info(
+            f"Parallel Map: processing {len(self)} items with {workers} workers."
+        )
+
         items = self.to_list()
-        # 在执行并行任务时，确保每个线程也能拿到正确的上下文（可选，取决于 func 是否依赖 config）
+
+        # TODO: 在执行并行任务时，确保每个线程也能拿到正确的上下文
         with ThreadPoolExecutor(max_workers=workers) as executor:
             results = list(executor.map(func, items))
+
+        logger.info(f"Parallel map finished. Processed {len(results)} items.")
         return InMemoryDataset(results, ctx=self.ctx)
 
     def run_task(
@@ -109,6 +121,9 @@ class Dataset(Generic[T]):
                 final_task_cfg.checkpoint_path,
                 interval=final_task_cfg.checkpoint_interval,
             )
+            logger.info(f"Checkpoint enabled: {final_task_cfg.checkpoint_path}")
+
+        logger.info(f"Preparing task: {processor.__class__.__name__}")
 
         # 定义结果生成器
         def result_generator():
@@ -119,6 +134,8 @@ class Dataset(Generic[T]):
                 source_data = self.filter(lambda c: not cp_manager.is_processed(c.uid))  # type: ignore
 
             try:
+                logger.info(f"Streaming task started...")
+
                 it = runner.run_stream(source_data)
                 if final_task_cfg.show_progress:
                     from tqdm import tqdm
@@ -133,6 +150,7 @@ class Dataset(Generic[T]):
                         it, total=total, desc=f"Running {processor.__class__.__name__}"
                     )
 
+                count = 0
                 for result in it:
                     if result.success and result.output:
                         if cp_manager:
@@ -142,14 +160,17 @@ class Dataset(Generic[T]):
                         if hasattr(result.output, "metadata"):
                             result.output.metadata.update(result.metadata)
 
+                        count += 1
                         yield result.output
                     elif not result.success:
                         if not final_task_cfg.ignore_errors:
+                            logger.error(f"Task failed explicitly: {result.error}")
                             raise RuntimeError(f"Task failed: {result.error}")
-                        # TODO: 这里未来可以接入 Logger 模块记录失败 ID
+
+                logger.info(f"Task stream completed. Yielded {count} items.")
+
             finally:
-                # 无论任务是正常结束还是报错中断，
-                # 都要尝试将缓冲区内的数据写入磁盘
+                # 无论任务是正常结束还是报错中断，都要尝试将缓冲区内的数据写入磁盘
                 if cp_manager:
                     cp_manager.flush()
 
@@ -158,7 +179,15 @@ class Dataset(Generic[T]):
 
     def save_to(self, sink: DataSink[T]) -> None:
         """底层保存接口：接受任何实现了 DataSink 的对象"""
+        sink_name = sink.__class__.__name__
+        logger.info(f"Triggering Data Sink: {sink_name}")
+
+        start_time = time.time()
+
         sink.save(self)
+
+        duration = time.time() - start_time
+        logger.info(f"Data Sink {sink_name} completed in {duration:.2f}s")
 
     def to_json(self, path: str | Path, **kwargs) -> None:
         """
@@ -197,6 +226,7 @@ class Dataset(Generic[T]):
             self.save_to(sink)
 
     def filter(self, func: Callable[[T], bool]) -> Dataset[T]:
+        """根据条件过滤数据。"""
         raise NotImplementedError
 
     def to_list(self) -> list[T]:
@@ -213,18 +243,25 @@ class Dataset(Generic[T]):
             yield batch
 
     def limit(self, n: int, from_begin: bool = True) -> LazyDataset[T]:
-        """只取前/后 n 条数据 (调试神器)"""
+        """只取前/后 n 条数据"""
         from .lazy_dataset import LazyDataset
 
+        logger.debug(
+            f"Limiting dataset to {n} items ({'head' if from_begin else 'tail'})"
+        )
+
         def generator():
-            for i, item in enumerate(self):
-                if from_begin:
+            # 对于 tail limit (from_begin=False)，必须先消耗整个迭代器才能知道长度
+            # 这对于无限流是不可能的，但对于 LazyDataset 是可行的（如果底层有限）
+            if not from_begin:
+                # 这种实现效率较低，但兼容所有 Iterable
+                all_items = list(self)
+                yield from all_items[-n:]
+            else:
+                for i, item in enumerate(self):
                     if i >= n:
                         break
-                else:
-                    if len(self) - i > n:
-                        continue
-                yield item
+                    yield item
 
         return LazyDataset(generator(), ctx=self.ctx)
 
@@ -234,6 +271,8 @@ class Dataset(Generic[T]):
 
         # 响应当前全局配置的 seed
         actual_seed = seed if seed is not None else config.settings.proc.seed
+        logger.info(f"Shuffling dataset (seed={actual_seed})")
+
         data = self.to_list()
 
         random.seed(actual_seed)
@@ -245,9 +284,12 @@ class Dataset(Generic[T]):
 
     def split(self, ratio: float) -> tuple[Dataset[T], Dataset[T]]:
         """按照比例切分数据集 (例如 0.8 将返回 80% 的训练集和 20% 的验证集)"""
+        from .in_memory_dataset import InMemoryDataset
+
+        logger.info(f"✂️ Splitting dataset with ratio {ratio}")
+
         data = self.to_list()
         split_idx = int(len(data) * ratio)
-        from .in_memory_dataset import InMemoryDataset
 
         return InMemoryDataset(data[:split_idx], ctx=self.ctx), InMemoryDataset(
             data[split_idx:], ctx=self.ctx
