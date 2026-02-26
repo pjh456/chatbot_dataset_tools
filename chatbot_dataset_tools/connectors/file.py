@@ -1,11 +1,13 @@
 import json
-from pathlib import Path
 from typing import Iterable, Iterator, Optional, Type
 from .base import T, DataSource, DataSink
 from .traits import FromDictType, ToDictType
 from chatbot_dataset_tools.types import Conversation
 from chatbot_dataset_tools.config import FileConfig, config
 from chatbot_dataset_tools.registry import register_source, register_sink
+from chatbot_dataset_tools.utils import get_logger
+
+logger = get_logger(__name__)
 
 
 @register_source()
@@ -27,6 +29,7 @@ class FileSource(DataSource[T]):
         self.encoding = self.file_cfg.encoding
 
     def load(self) -> Iterator[T]:
+
         method_name = f"_load_{self.format}"
         loader_method = getattr(self, method_name, None)
 
@@ -36,7 +39,20 @@ class FileSource(DataSource[T]):
                 f"Need to implement a method named '{method_name}'."
             )
 
-        return loader_method()
+        logger.info(f"Loading data from file: {self.path} (format={self.format})")
+
+        count = 0
+        try:
+            for item in loader_method():
+                count += 1
+                yield item
+            logger.info(f"Loaded {count} items from {self.path}")
+        except FileNotFoundError:
+            logger.error(f"File not found: {self.path}")
+            raise
+        except Exception as e:
+            logger.error(f"Error loading file {self.path}: {e}")
+            raise
 
     def _load_json(self) -> Iterator[T]:
         with open(self.path, "r") as f:
@@ -82,24 +98,43 @@ class FileSink(DataSink[T]):
         return saver_method(data)
 
     def _save_json(self, data: Iterable[ToDictType]) -> None:
-        with open(self.path, "w", encoding=self.encoding) as f:
-            f.write("[")
+        logger.info(f"Saving to JSON file: {self.path}")
+        count = 0
 
-            first = True
-            for raw_conv in data:
-                if not first:
-                    f.write(",\n")
-                else:
-                    first = False
+        try:
+            with open(self.path, "w", encoding=self.encoding) as f:
+                f.write("[")
+                first = True
 
-                conv = raw_conv.to_dict()
-                json.dump(conv, f, ensure_ascii=False, indent=self.indent)
+                for raw_conv in data:
+                    if not first:
+                        f.write(",\n")
+                    else:
+                        first = False
 
-            f.write("]")
+                    conv = raw_conv.to_dict()
+                    json.dump(conv, f, ensure_ascii=False, indent=self.indent)
+                    count += 1
+
+                f.write("]")
+
+                logger.info(f"Saved {count} items to {self.path}")
+        except Exception as e:
+            logger.error(f"Failed to save to {self.path}: {e}")
+            raise
 
     def _save_jsonl(self, data: Iterable[ToDictType]) -> None:
-        with open(self.path, "w", encoding=self.encoding) as f:
-            for raw_conv in data:
-                conv = raw_conv.to_dict()
-                json.dump(conv, f)
-                f.write("\n")
+        logger.info(f"Saving to JSONL file: {self.path}")
+        count = 0
+
+        try:
+            with open(self.path, "w", encoding=self.encoding) as f:
+                for raw_conv in data:
+                    conv = raw_conv.to_dict()
+                    json.dump(conv, f)
+                    f.write("\n")
+
+            logger.info(f"Saved {count} items to {self.path}")
+        except Exception as e:
+            logger.error(f"Failed to save to {self.path}: {e}")
+            raise
